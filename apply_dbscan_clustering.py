@@ -15,9 +15,11 @@ from sklearn.mixture import GaussianMixture
 
 from sklearn.cluster import DBSCAN
 from clustering_utils import get_random_samples, plot_audio_segments
+from clustering_utils import statistical_report, create_statistical_report_with_radar_plots
+
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
-features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_'
+features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
 
 # metadata_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/High_quality_dataset/high_quality_dataset_metadata.csv'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
@@ -25,7 +27,7 @@ metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_featu
 audio_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\high_quality_dataset'
 
 # Path to save the results
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\_dbscan_clustering_'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_'
 if not os.path.exists(clusterings_results_path):
     os.makedirs(clusterings_results_path)
 
@@ -42,12 +44,12 @@ all_data = all_data.dropna()
 
 # scale data with StandardScaler on used features only
 scaler = StandardScaler()
-features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec', 'recording'], axis=1)
+features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec', 'recording', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
 
-epsilon = 4
-min_samples = 5
+epsilon = 5.9
+min_samples = 2
 
 # Compute the DBSCAN clustering
 db = DBSCAN(eps=epsilon, min_samples=min_samples).fit(features_scaled)
@@ -76,7 +78,7 @@ standard_embedding = umap_reducer.fit_transform(features_scaled)
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
 
-custom_colors = ['LightCoral', 'Turquoise', 'LightSalmon', 'MediumPurple', 'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightCoral', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
+custom_colors = ['Turquoise','Orange', 'MediumPurple', 'Darkred' ,'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
 
 for j in range(n_clusters_):
     ax.scatter(standard_embedding[labels == j, 0], 
@@ -108,3 +110,12 @@ print('Random samples selected')
 # # Plot the audio segments
 plot_audio_segments(random_samples, audio_path, clusterings_results_path, file_csv)
 print('Audio segments plotted')
+
+
+# Get the statistical report
+
+stats = statistical_report(all_data, labels, n_clusters_, metadata, clusterings_results_path)
+print(stats)
+
+
+radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_, metadata, clusterings_results_path)

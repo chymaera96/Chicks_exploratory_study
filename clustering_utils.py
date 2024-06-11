@@ -16,6 +16,11 @@ import itertools
 from sklearn.mixture import GaussianMixture
 
 
+
+
+
+
+
 def plot_dendrogram(model, num_clusters=None, **kwargs):
     """
     Plot a dendrogram for hierarchical clustering.
@@ -51,24 +56,30 @@ def plot_dendrogram(model, num_clusters=None, **kwargs):
     # Construct the linkage matrix
     linkage_matrix = np.column_stack([model.children_, model.distances_, counts]).astype(float)
     
+    # Debug: stampa le dimensioni degli array
+    print(f"linkage_matrix shape: {linkage_matrix.shape}")
+    print(f"linkage_matrix: {linkage_matrix}")
+
     # Plot the dendrogram
     dendrogram(linkage_matrix, **kwargs)
     
     # Plot the threshold line if num_clusters is specified
     if num_clusters is not None:
-        max_d = np.max(model.distances_)  # Maximum distance in the dendrogram
-        threshold = max_d / (num_clusters - 1)  # Estimate threshold based on number of clusters
-        plt.axhline(y=threshold, color='r', linestyle='--', label=f'{num_clusters} clusters')  # Plot threshold line
-        plt.legend()  # Show legend
+        max_d = np.max(model.distances_)
+        threshold = max_d / (num_clusters - 1)
+        plt.axhline(y=threshold, color='r', linestyle='--', label=f'{num_clusters} clusters')
+        plt.legend()
     
-    # Set labels and title
     plt.xlabel('Sample index or (cluster size)')
     plt.ylabel('Distance')
     plt.title('Hierarchical Clustering Dendrogram')
-    plt.show()  # Show the plot
+    plt.show()
     
-    # Return relevant information
     return threshold, linkage_matrix, counts, n_samples, model.labels_
+
+
+
+
 
 
 
@@ -137,15 +148,7 @@ def segment_spectrogram(spectrogram, onsets, offsets, sr=44100):
 
 
 
-
-
-
-
-
-
-
-
-    
+  
 
 # Function to extract and plot audio segments
 def plot_audio_segments(samples_dict, audio_path, clusterings_results_path, cluster_membership_label):
@@ -170,13 +173,13 @@ def plot_audio_segments(samples_dict, audio_path, clusterings_results_path, clus
                 call_S = calls_S[0]
 
                 # Convert onset seconds with decimals to readable format
-                onset_sec = sample['onsets_sec']
-                if onset_sec < 60:
-                    onset_time = f"{onset_sec:.2f} sec"
-                else:
-                    minutes = int(onset_sec // 60)
-                    seconds = onset_sec % 60
-                    onset_time = f"{minutes} min & {seconds:.2f} sec"
+                # onset_sec = sample['onsets_sec']
+                # if onset_sec < 60:
+                #     onset_time = f"{onset_sec:.2f} sec"
+                # else:
+                #     minutes = int(onset_sec // 60)
+                #     seconds = onset_sec % 60
+                #     onset_time = f"{minutes} min & {seconds:.2f} sec"
 
                 # Plot the audio segment
                 img= axes[idx].imshow(call_S, aspect='auto', origin='lower', cmap='magma')
@@ -317,7 +320,7 @@ def statistical_report(all_data, cluster_membership,n_clusters, metadata, output
     # Crea un DataFrame per memorizzare il report statistico
     all_data['cluster_membership'] = cluster_membership
 
-    all_data =  all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec'], axis=1)
+    all_data =  all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
     
     # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
     statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
@@ -339,94 +342,87 @@ def statistical_report(all_data, cluster_membership,n_clusters, metadata, output
     colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
     color_map = {i: color for i, color in enumerate(colors[:n_clusters])}
 
-# Plot separati per gruppi di caratteristiche
+    # Plot separati per gruppi di caratteristiche
     features = list(all_data.columns[:-1])  # Escludi 'cluster_membership'
     num_features = len(features)
-    # features_per_plot = 5  # Numero di caratteristiche per ogni plot
-    # num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calcola il numero di plot necessari
+    features_per_plot = 4  # Numero di caratteristiche per ogni plot
+    num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calcola il numero di plot necessari
 
-    # for i in range(num_plots):
-    #     start_idx = i * features_per_plot
-    #     end_idx = min(start_idx + features_per_plot, num_features)
-    #     plot_features = features[start_idx:end_idx]
+    for i in range(num_plots):
+        start_idx = i * features_per_plot
+        end_idx = min(start_idx + features_per_plot, num_features)
+        plot_features = features[start_idx:end_idx]
 
-    #     fig, axs = plt.subplots(1, len(plot_features), figsize=(20, 5))
+        fig, axs = plt.subplots(1, len(plot_features), figsize=(20, 5))
 
-    #     # Assicurati che axs sia una lista anche se contiene un solo subplot
-    #     if len(plot_features) == 1:
-    #         axs = [axs]
+        # Assicurati che axs sia una lista anche se contiene un solo subplot
+        if len(plot_features) == 1:
+            axs = [axs]
 
-    #     for j, feature in enumerate(plot_features):
-    #         data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
+        for j, feature in enumerate(plot_features):
+            data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
             
-    #         # Boxplot trasparente
-    #         bplot = axs[j].boxplot(data, patch_artist=True, notch=True, showfliers=False)
-    #         for patch in bplot['boxes']:
-    #             patch.set_alpha(0.5)
+            bplot = axs[j].boxplot(data, patch_artist=True, showfliers= False)
+            for patch, k in zip(bplot['boxes'], range(n_clusters)):
+                patch.set_alpha(0.1)
 
-    #         # Scatterplot sovrapposto
-    #         for cluster in range(n_clusters):
-    #             cluster_data = all_data[all_data['cluster_membership'] == cluster]
-    #             axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
-    #                            alpha=0.3, c=color_map[cluster], edgecolor='k', s=20, label=f'Cluster {cluster}')
-            
-    #         axs[j].set_title(f'{feature} per cluster')
-    #         axs[j].set_xlabel('Cluster')
-    #         axs[j].set_ylabel('Value')
-    #         if j == 0:  # Solo il primo subplot ha la leggenda
-    #             axs[j].legend()
-    #     plt.tight_layout()
+            # Scatterplot sovrapposto
+            for cluster in range(n_clusters):
+                cluster_data = all_data[all_data['cluster_membership'] == cluster]
+                axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
+                               alpha=0.3, c=color_map[cluster], edgecolor= color_map[cluster], s=13, label=f'Cluster {cluster}')
+                
+                axs[j].set_title(f'{feature} per cluster', size=7)
+                axs[j].set_xlabel('Cluster', size=7)
+                axs[j].set_ylabel('Value', size=7)
 
-    #     # Salva il plot su file
-    #     plot_file_path = os.path.join(output_folder, f'statistical_report_part_{i+1}.png')
-    #     plt.savefig(plot_file_path)
-    #     plt.show()
+        plt.tight_layout()
 
-    fig, axs = plt.subplots(nrows=6, ncols=5, figsize=(30, 25))  # Creiamo una griglia di subplot 6x5 (per un totale di 30 spazi)
-
-    # Appiattiamo axs per un facile accesso
-    axs = axs.flatten()
-
-    for j, feature in enumerate(features):
-        data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
-        
-        # Boxplot trasparente
-        bplot = axs[j].boxplot(data, patch_artist=True, notch=True, showfliers=False)
-        for patch in bplot['boxes']:
-            patch.set_alpha(0.5)
-
-        # Scatterplot sovrapposto
-        for cluster in range(n_clusters):
-            cluster_data = all_data[all_data['cluster_membership'] == cluster]
-            axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
-                           alpha=0.3, c=color_map[cluster], edgecolor='k', s=20, label=f'Cluster {cluster}')
-        
-        axs[j].set_title(f'{feature} per cluster')
-        axs[j].set_xlabel('Cluster')
-        axs[j].set_ylabel('Value')
-        if j == 0:  # Solo il primo subplot ha la leggenda
-            axs[j].legend()
-    
-    # Rimuove assi vuoti se ce ne sono meno di 30
-    for j in range(len(features), len(axs)):
-        fig.delaxes(axs[j])
-
-    plt.tight_layout()
-
-    # Salva il plot su file
-    plot_file_path = os.path.join(output_folder, 'statistical_report_all_features.png')
-    plt.savefig(plot_file_path)
-    plt.show()
+        # Salva il plot su file
+        plot_file_path = os.path.join(output_folder, f'statistical_report_part_{i+1}.png')
+        plt.savefig(plot_file_path)
+        # plt.show()
 
     return statistical_report_df
 
 
+    # # To plot all features in a single plot
+    # fig, axs = plt.subplots(nrows=6, ncols=5, figsize=(40, 25))  # Creiamo una griglia di subplot 6x5 (per un totale di 30 spazi)
 
+    # # Appiattiamo axs per un facile accesso
+    # axs = axs.flatten()
 
+    # for j, feature in enumerate(features):
+    #     data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
+        
+    #     bplot = axs[j].boxplot(data, patch_artist=True, showfliers= True)
+    #     for patch, k in zip(bplot['boxes'], range(n_clusters)):
+    #         patch.set_facecolor(color_map[k])
+    #         patch.set_alpha(0.1)
 
+    #         # Scatterplot sovrapposto
+    #     for cluster in range(n_clusters):
+    #         cluster_data = all_data[all_data['cluster_membership'] == cluster]
+    #         axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
+    #                         alpha=0.3, c=color_map[cluster], edgecolor='k', s=13, label=f'Cluster {cluster}')
+            
+    #         axs[j].set_title(f'{feature}', size=7)
+    #         axs[j].set_xlabel('Clusters', size=5)
+    #         axs[j].set_ylabel('Value', size=5)
 
+    
+    # # Rimuove assi vuoti se ce ne sono meno di 30
+    # for j in range(len(features), len(axs)):
+    #     fig.delaxes(axs[j])
 
+    # plt.tight_layout()
 
+    # # Salva il plot su file
+    # plot_file_path = os.path.join(output_folder, 'statistical_report_all_features.png')
+    # plt.savefig(plot_file_path)
+    # plt.show()
+
+    # return statistical_report_df
 
 
 
@@ -437,7 +433,7 @@ def create_statistical_report_with_radar_plots(all_data, cluster_membership, n_c
     all_data['cluster_membership'] = cluster_membership
 
     # Elimina le colonne non necessarie
-    all_data = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec'], axis=1)
+    all_data = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec','call_id'], axis=1)
 
     # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
     statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
@@ -462,12 +458,47 @@ def create_statistical_report_with_radar_plots(all_data, cluster_membership, n_c
     # Definire colori distinti per ogni cluster
     colors = plt.cm.get_cmap('tab10', n_clusters)
 
+    # Funzione per creare un singolo radar plot
+    def create_radar_plot(data, title, color, ax):
+        categories = list(data.keys())
+        values = list(data.values())
+        values += values[:1]  # Chiudi il cerchio
 
+        angles = [n / float(num_features) * 2 * pi for n in range(num_features)]
+        angles += angles[:1]
 
+        ax.set_theta_offset(pi / 2)
+        ax.set_theta_direction(-1)
+        
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(categories, color='dimgrey', size=4.5, fontweight='bold')
+        
+        ax.plot(angles, values, color=color, linewidth=2, linestyle='solid')
+        ax.fill(angles, values, color= color, alpha=0.3)
 
+        ax.set_title(title, size=10, color=color, y=1.1)
 
+    # Creare una griglia di radar plot
+    num_cols = 3
+    num_rows = int(np.ceil(num_clusters / num_cols))
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(num_cols * 4, num_rows * 4), subplot_kw=dict(polar=True))
 
+    axs = axs.flatten()
 
+    for i, row in statistical_report_df.iterrows():
+        data = row[features].to_dict()
+        color = colors(i)
+        create_radar_plot(data, f'Cluster {int(row["cluster_membership"])}', color, axs[i])
+
+    for j in range(num_clusters, len(axs)):
+        fig.delaxes(axs[j])
+
+    plt.tight_layout()
+    plot_file_path = os.path.join(output_folder, 'radar_plots_clusters.png')
+    plt.savefig(plot_file_path)
+    # plt.show()
+
+    return statistical_report_df
 
 
 

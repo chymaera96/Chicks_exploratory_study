@@ -7,13 +7,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_mutual_info_score
 import matplotlib.pyplot as plt
 from kneed import KneeLocator
+from gap_statistic import OptimalK
 import itertools
-from clustering_utils import find_elbow_point_wcss
 
 # Path to the directory containing the CSV files
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\_dbscan_clustering_'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_'
 
 #save the results
 if not os.path.exists(clusterings_results_path):
@@ -31,12 +31,12 @@ all_data = all_data.dropna()
 
 # Scale data with StandardScaler on used features only
 scaler = StandardScaler()
-features = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec'], axis=1)
+features = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
 # Parameters ranges
-eps_range = np.linspace(4.0, 7.0, 20)
-min_samples_range = range(2, 5, 10, 20, 30 , 40, 50, 60, 70, 80, 90, 100)
+eps_range = np.linspace(4.0, 9.0, 30)
+min_samples_range =[ 2, 3, 4, 5 ,6, 7, 8, 9, 10, 20, 30 , 40, 50, 60, 70, 80, 90, 100]
 
 dbscan_cluster_evaluation_per_params = {
     params: {
@@ -98,13 +98,19 @@ dbscan_cluster_evaluation_per_params = {
 
 
 dbscan_cluster_evaluation_per_params_df = pd.DataFrame(dbscan_cluster_evaluation_per_params).T
-dbscan_cluster_evaluation_per_params_df = dbscan_cluster_evaluation_per_params_df.sort_values(by='number_of_cluster')
+dbscan_cluster_evaluation_per_params_df = dbscan_cluster_evaluation_per_params_df.sort_values(by='number_of_cluster', ascending=True)
 dbscan_cluster_evaluation_per_params_df.to_csv(os.path.join(clusterings_results_path, 'dbscan_cluster_evaluation_per_params.csv'), index=False)
 dbscan_cluster_evaluation_per_params_df.to_latex(os.path.join(clusterings_results_path, 'dbscan_cluster_evaluation_per_params.tex'))
 
-wcss_values = dbscan_cluster_evaluation_per_params_df['wcss'].values
+# Find the optimal number of clusters using the OptimalK class
+optimal_k = OptimalK(parallel_backend='joblib')
+n_clusters_optimal_k = optimal_k(features_scaled, cluster_array=np.arange(2, 11))
+print('Optimal number of clusters for k:', n_clusters_optimal_k)
 
-wcss_knee_finder = KneeLocator(range(1, len(wcss_values) + 1), wcss_values, curve='convex', direction='decreasing', interp_method='polynomial', online=False)
+# Ensure the values are converted to float64
+wcss_values = dbscan_cluster_evaluation_per_params_df['wcss'].astype(float).values
+# Create the KneeLocator object
+wcss_knee_finder = KneeLocator(range(2, len(wcss_values) + 2), wcss_values, curve='convex', direction='decreasing', interp_method='polynomial', online=False)
 wcss_elbow = wcss_knee_finder.elbow
 
 number_of_clusters = dbscan_cluster_evaluation_per_params_df['number_of_cluster'].values
@@ -123,90 +129,120 @@ eps_vector = dbscan_cluster_evaluation_per_params_df['eps'].values
 min_samples_vector = dbscan_cluster_evaluation_per_params_df['min_samples'].values
 cluster_vector = dbscan_cluster_evaluation_per_params_df['number_of_cluster'].values
 
-# # Plotting
-# plt.figure(figsize=(25, 12))
 
-# # Plot Silhouette score
-# plt.subplot(1, 2, 1)
-# plt.plot(cluster_vector, silhouette_scores)
-# plt.xlabel('Number of combinations of eps and min_samples')
-# plt.ylabel('Silhouette score')
-# plt.title('Silhouette score per combination of eps and min_samples')
+
+# # Trova il miglior valore di Silhouette score per ogni numero di cluster nel range specificato
+
+# cluster_founded = dbscan_cluster_evaluation_per_params_df['number_of_cluster'].unique()
+# best_silhouette_per_cluster = []
+# for num_clusters in cluster_founded:  # selct the max silhouette score for each number of cluster
+#     silhouette_scores_for_cluster = dbscan_cluster_evaluation_per_params_df[dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['silhouette_score'].values
+#     best_silhouette_per_cluster.append(silhouette_scores_for_cluster.max())
+
+
+
+# best_calinski_per_cluster = []
+# for num_clusters in cluster_founded:
+#     calinski_scores_for_cluster = dbscan_cluster_evaluation_per_params_df[dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['calinski_harabasz_score'].values
+#     best_calinski_per_cluster.append(calinski_scores_for_cluster.max())
+
+
+# best_wcss_per_cluster = []
+# for num_clusters in cluster_founded:
+#     wcss_for_cluster = dbscan_cluster_evaluation_per_params_df[dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['wcss'].values
+#     best_wcss_per_cluster.append(wcss_for_cluster.max())
+
+
+
+
+# print(cluster_founded)
+
+# plt.figure(figsize=(30, 5))
+
+# # Plot del miglior Silhouette score per numero di cluster
+# plt.subplot(1, 3, 1)
+# plt.plot(range(2, len(cluster_founded) + 2), best_silhouette_per_cluster, 'bx-')
+# plt.xlabel('Number of clusters')
+# plt.ylabel('Best Silhouette score')
+# plt.title('Best Silhouette score per number of clusters')
 # plt.grid()
-# plt.axvline(x=max_silhouette_score, color='r', linestyle='--', label='Best Silhouette score')
-# plt.legend()
 
-# # Plot Calinski Harabasz score
-# plt.subplot(1, 2, 2)
-# plt.plot(cluster_vector, calinski_harabasz_scores)
-# plt.xlabel('Number of combinations of eps and min_samples')
-# plt.ylabel('Calinski Harabasz score')
-# plt.title('Calinski Harabasz score per combination of eps and min_samples')
+# # Plot del miglior Calinski Harabasz score per numero di cluster
+# plt.subplot(1, 3, 2)
+# plt.plot(range(2, len(cluster_founded) + 2), best_calinski_per_cluster, 'bx-')
+# plt.xlabel('Number of clusters')
+# plt.ylabel('Best Calinski Harabasz score')
+# plt.title('Best Calinski Harabasz score per number of clusters')
 # plt.grid()
-# plt.axvline(x=max_calinski_harabasz_score, color='r', linestyle='--', label='Best CH score')
-# plt.legend()
 
-# plt.savefig(os.path.join(clusterings_results_path, 'dbscan_cluster_evaluation_per_params.png'))
-
-# # Plot the WCSS per number of clusters
-# plt.figure(figsize=(20, 4))
-# plt.plot(cluster_vector, wcss_values)
-# plt.xlabel('Number of combinations of eps and min_samples')
-# plt.ylabel('WCSS')
-# plt.title('WCSS per number of combinations of eps and min_samples')
-# plt.grid()
+# # Plot del miglior WCSS per numero di cluster
+# plt.subplot(1, 3, 3)
+# plt.plot(range(2, len(cluster_founded) + 2), best_wcss_per_cluster, 'bx-')
 # plt.axvline(x=wcss_elbow, color='r', linestyle='--', label=f'Elbow point: {wcss_elbow}')
+# plt.xlabel('Number of clusters')
+# plt.ylabel('Best WCSS')
+# plt.title('Best WCSS per number of clusters')
 # plt.legend()
-# plt.savefig(os.path.join(clusterings_results_path, 'dbscan_wcss.png'))
+# plt.grid()
+
+# # Adjust layout and save the figure
+# plt.tight_layout()
+# plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_\\dbscan_cluster_evaluation_per_params.png')
 # plt.show()
 
 
 
-# Save results
-results = pd.DataFrame({
-    'eps': [eps_vector],
-    'min_samples': [min_samples_vector],
-    'number_of_clusters': [number_of_clusters],
-    'silhouette_score': [silhouette_scores],
-    'calinski_harabasz_score': [calinski_harabasz_scores],
-    'wcss': [wcss_values]
-})
-results.to_csv(os.path.join(clusterings_results_path, 'dbscan_cluster_final_evaluation.csv'), index=False)
 
-# Plotting
-plt.figure(figsize=(12, 6))
+# Trova il miglior valore di Silhouette score per ogni numero di cluster nel range specificato
+cluster_founded = sorted(dbscan_cluster_evaluation_per_params_df['number_of_cluster'].unique())
+best_silhouette_per_cluster = []
+best_calinski_per_cluster = []
+best_wcss_per_cluster = []
 
-# Plot Silhouette score
-plt.subplot(3, 1, 1)
-plt.plot(eps_vector, silhouette_scores)
-plt.xlabel('eps')
-plt.ylabel('Silhouette score')
-plt.title('Silhouette score for eps')
+for num_clusters in cluster_founded:
+    silhouette_scores_for_cluster = dbscan_cluster_evaluation_per_params_df[
+        dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['silhouette_score'].values
+    best_silhouette_per_cluster.append(silhouette_scores_for_cluster.max())
+
+    calinski_scores_for_cluster = dbscan_cluster_evaluation_per_params_df[
+        dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['calinski_harabasz_score'].values
+    best_calinski_per_cluster.append(calinski_scores_for_cluster.max())
+
+    wcss_for_cluster = dbscan_cluster_evaluation_per_params_df[
+        dbscan_cluster_evaluation_per_params_df['number_of_cluster'] == num_clusters]['wcss'].values
+    best_wcss_per_cluster.append(wcss_for_cluster.max())
+
+# Plot
+plt.figure(figsize=(30, 5))
+
+# Plot del miglior Silhouette score per numero di cluster
+plt.subplot(1, 3, 1)
+plt.plot(cluster_founded, best_silhouette_per_cluster, 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Best Silhouette score')
+plt.title('Best Silhouette score per number of clusters')
 plt.grid()
 
-# Plot Calinski Harabasz score
-plt.subplot(3, 1, 2)
-plt.plot([eps_vector], [calinski_harabasz_scores], marker='o')
-plt.xlabel('eps')
-plt.ylabel('Calinski Harabasz score')
-plt.title('Calinski Harabasz score for eps')
+# Plot del miglior Calinski Harabasz score per numero di cluster
+plt.subplot(1, 3, 2)
+plt.plot(cluster_founded, best_calinski_per_cluster, 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Best Calinski Harabasz score')
+plt.title('Best Calinski Harabasz score per number of clusters')
 plt.grid()
 
-# Plot WCSS
-plt.subplot(3, 1, 3)
-plt.plot(eps_vector, wcss_values)
-plt.xlabel('eps')
-plt.ylabel('WCSS')
-plt.axline((eps_vector[wcss_elbow], wcss_values[wcss_elbow]), (eps_vector[wcss_elbow], 0), color='r', linestyle='--', label=f'Elbow point: {eps_vector[wcss_elbow]}')
-plt.title('WCSS for eps')
+# Plot del miglior WCSS per numero di cluster
+plt.subplot(1, 3, 3)
+plt.plot(cluster_founded, best_wcss_per_cluster, 'bx-')
+wcss_elbow = cluster_founded[best_wcss_per_cluster.index(min(best_wcss_per_cluster))] # esempio di punto gomito
+plt.axvline(x=wcss_elbow, color='r', linestyle='--', label=f'Elbow point: {wcss_elbow}')
+plt.xlabel('Number of clusters')
+plt.ylabel('Best WCSS')
+plt.title('Best WCSS per number of clusters')
+plt.legend()
 plt.grid()
 
+# Adjust layout and save the figure
 plt.tight_layout()
-plt.savefig(os.path.join(clusterings_results_path, 'dbscan_cluster_evaluation.png'))
+plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_\\dbscan_cluster_evaluation_per_params.png')
 plt.show()
-
-print(f'Best parameters: eps = {max_silhouette_score_params["eps"].values[0]}, min_samples = {max_silhouette_score_params["min_samples"].values[0]}')
-print(f'Number of clusters: {number_of_clusters}')
-print(f'Silhouette score: {max_silhouette_score}')
-print(f'Calinski Harabasz score: {max_calinski_harabasz_score}')
-print(f'WCSS: {wcss_values[wcss_elbow]}')

@@ -6,9 +6,9 @@ import umap.umap_ as umap
 # import umap  #install umap-learn
 import matplotlib.pyplot as plt
 from kneed import KneeLocator
+from gap_statistic import OptimalK
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_mutual_info_score
-from sklearn.metrics import calinski_harabasz_score
+from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from scipy.cluster.hierarchy import dendrogram, linkage
 from clustering_utils import plot_dendrogram, find_elbow_point
 
@@ -20,7 +20,7 @@ features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_featu
 # metadata_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/High_quality_dataset/high_quality_dataset_metadata.csv'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
 # save the results
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\_hierarchical_clustering_'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_hierarchical_clustering_'
 if not os.path.exists(clusterings_results_path):
     os.makedirs(clusterings_results_path)
 
@@ -35,7 +35,7 @@ all_data = all_data.dropna()
 
 # scale data with StandardScaler on used features only
 scaler = StandardScaler()
-features = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec'], axis=1)
+features = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
 
@@ -116,9 +116,15 @@ hierarchical_cluster_evaluation_per_number_clusters_df.to_latex(os.path.join(clu
 
 
 # Find the optimal number of clusters
+
 wcss_vector_across_n_clusters = [hierarchical_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] for n_clusters in range(2, n_max_clusters)]
 wcss_elbow = KneeLocator(range(2, n_max_clusters), wcss_vector_across_n_clusters, curve='convex', direction='decreasing', interp_method='polynomial', online=False)
 best_n_clusters_by_wcss_elbow= wcss_elbow.elbow
+
+
+optimal_k = OptimalK(parallel_backend='joblib')
+n_clusters_optimal_k = optimal_k(features_scaled, cluster_array=np.arange(2, n_max_clusters))
+print('Optimal number of clusters for k:', n_clusters_optimal_k)
 
 
 
@@ -139,7 +145,7 @@ axes[1].set_ylabel('Calinski Harabasz score')
 axes[1].set_title('Calinski Harabasz score per number of clusters')
 axes[1].grid(True)
 plt.tight_layout()
-plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\_hierarchical_clustering_\\hierarchical_cluster_evaluation_per_number_clusters_silhouette_calinski.png')
+plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_hierarchical_clustering_\\hierarchical_cluster_evaluation_per_number_clusters_silhouette_calinski.png')
 plt.show()
 
 
@@ -151,7 +157,7 @@ plt.ylabel('WCSS')
 plt.title('WCSS per number of clusters')
 plt.legend()
 plt.grid(True)
-plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\_hierarchical_clustering_\\hierarchical_cluster_evaluation_per_number_clusters_wcss.png')
+plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_hierarchical_clustering_\\hierarchical_cluster_evaluation_per_number_clusters_wcss.png')
 plt.show()
 
 print('Hierarchical clustering done')

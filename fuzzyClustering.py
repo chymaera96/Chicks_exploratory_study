@@ -21,6 +21,13 @@ features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_featu
 # metadata_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/High_quality_dataset/high_quality_dataset_metadata.csv'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
 
+
+# Path to save the results
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_fuzzy_clustering_'
+# Check if the directory exists, if not, create it
+if not os.path.exists(clusterings_results_path):
+    os.makedirs(clusterings_results_path)
+
 # Get a list of all CSV files in the directory
 list_files = glob.glob(os.path.join(features_path, '*.csv'))
 
@@ -35,7 +42,7 @@ all_data = all_data.dropna()
 
 # scale data with StandardScaler on used features only
 scaler = StandardScaler()  
-features = all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'onset_time', 'call_id'], axis=1)
+features = all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
 
@@ -56,14 +63,21 @@ fuzzy_cluster_evaluation_per_number_clusters = {
                 }
 
 
+
+
 for n_clusters in range(2, n_max_clusters):
     cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(features_scaled.T, n_clusters, 2, error=0.005, maxiter=1000, init=None)
     cluster_membership = np.argmax(u, axis=0)
 
+    # Corrected WCSS computation
+    wcss = 0
+    for i in range(n_clusters):
+        distances = np.linalg.norm(features_scaled - cntr[i], axis=1)
+        wcss += np.sum((u[i, :] ** 2) * (distances ** 2))
+        
     fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['silhouette_score'] = silhouette_score(features_scaled, cluster_membership)
     fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['calinski_harabasz_score'] = calinski_harabasz_score(features_scaled, cluster_membership)
-
-    fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] = np.sum(np.min(np.linalg.norm(features_scaled - cntr[:, cluster_membership], axis=1) ** 2))
+    fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] = wcss  
     fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['fpc'] = fpc
     print('number of clusters:', n_clusters, 'silhouette_score:', fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['silhouette_score'], 'calinski_harabasz_score:', fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['calinski_harabasz_score'], 'wcss:', fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['wcss'], 'fpc:', fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['fpc'])
 
@@ -80,7 +94,7 @@ fuzzy_cluster_evaluation_per_number_clusters_df.to_latex(os.path.join(clustering
 wcss_vector_across_n_clusters = [fuzzy_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] for n_clusters in range(2, n_max_clusters)]
 
 # best_n_clusters_by_wcss_elbow_finder = find_elbow_point(wcss_vector_across_n_clusters)
-wcss_elbow = KneeLocator(range(2, n_max_clusters), wcss_vector_across_n_clusters, curve='convex', direction='decreasing', interp_method='interp1d', online= False)
+wcss_elbow = KneeLocator(range(2, n_max_clusters), wcss_vector_across_n_clusters, curve='convex', direction='decreasing', interp_method='polynomial', online=False)
                 
 best_n_clusters_by_wcss_elbow = wcss_elbow.elbow    
 
@@ -105,7 +119,7 @@ plt.ylabel('Calinski Harabasz score')
 plt.title('Calinski Harabasz score per number of clusters')
 plt.grid()
 
-plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\fuzzy_cluster_evaluation_per_number_clusters_1.png')
+plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\fuzzy_cluster_evaluation_per_number_clusters_1.png')
 
 plt.figure(figsize=(30, 5))
 
@@ -127,7 +141,7 @@ plt.legend()
 plt.title('FPC per number of clusters')
 plt.grid()
 
-plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering\\fuzzy_cluster_evaluation_per_number_clusters_2.png')
+plt.savefig('C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\fuzzy_cluster_evaluation_per_number_clusters_2.png')
 
 plt.show()
 
