@@ -53,9 +53,9 @@ agg = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward', compute_dis
 
 cluster_membership = agg.fit_predict(features_scaled)
 
-all_data['hierarchical_cluster_membership'] = cluster_membership
+all_data['cluster_membership'] = cluster_membership
 
-all_data.to_csv(os.path.join(clusterings_results_path, f'hierarchical_clustering_ + str(n_clusters) + _membership.csv'), index=False)
+all_data.to_csv(os.path.join(clusterings_results_path, f'hierarchical_clustering__{n_clusters}_membership.csv'), index=False)
 linkage_matrix = linkage(features_scaled, method='ward')
 
 
@@ -65,10 +65,10 @@ if membership is not None:
     print(membership)
 
 # Get 5 random samples for each cluster
-random_samples = get_random_samples(all_data, 'hierarchical_cluster_membership', num_samples=5)
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
 
 # Plot the audio segments
-plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'hierarchical_cluster_membership')
+plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 # Get the statistical report
 

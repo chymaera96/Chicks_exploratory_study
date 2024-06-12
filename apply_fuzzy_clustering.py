@@ -72,7 +72,7 @@ all_data['cluster_membership'] = cluster_membership
 
 
 # save the results
-all_data.to_csv(os.path.join(clusterings_results_path, 'fuzzy_cluster_3_membership.csv'), index=False)
+all_data.to_csv(os.path.join(clusterings_results_path, f'fuzzy_cluster_{n_clusters}_membership.csv'), index=False)
 
 
 # Perform UMAP for obtaining the standard embeddings for the clustering techniques
@@ -149,13 +149,13 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 # plt.show()
 
 
-# Get random samples
-random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-print(' Random samples selected')
-# # Plot the audio segments
-plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+# # Get random samples
+# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+# print(' Random samples selected')
+# # # Plot the audio segments
+# plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
-print('Fuzzy clustering completed')
+# print('Fuzzy clustering completed')
 
 stats = statistical_report(all_data, cluster_membership,n_clusters, metadata, clusterings_results_path)
 print(stats)

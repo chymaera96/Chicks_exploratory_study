@@ -54,7 +54,7 @@ n_components = 3
 gmm = GaussianMixture(n_components=n_components, random_state=42)
 cluster_membership = gmm.fit_predict(features_scaled)
 
-all_data['gmm_cluster_membership'] = cluster_membership
+all_data['cluster_membership'] = cluster_membership
 # save the results
 all_data.to_csv(os.path.join(clusterings_results_path, f'gaussian_mixture_2_membership.csv'), index=False)  
 
@@ -80,10 +80,10 @@ plt.legend()
 plt.show()
 
 # extract segments from the audio files
-random_samples = get_random_samples(all_data, 'gmm_cluster_membership', num_samples=5)
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
 print('Random samples selected')
 # # Plot the audio segments
-plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'gaussian_mixture_3_membership')
+plot_audio_segments(random_samples, audio_path, clusterings_results_path, f'gaussian_mixture_{n_components}_membership')
 print('Audio segments plotted')
 
 gmm.predict_proba(features_scaled)

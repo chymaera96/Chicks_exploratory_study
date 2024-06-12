@@ -61,21 +61,37 @@ def plot_dendrogram(model, num_clusters=None, **kwargs):
     print(f"linkage_matrix: {linkage_matrix}")
 
     # Plot the dendrogram
-    dendrogram(linkage_matrix, **kwargs)
-    
+    dendrogram(linkage_matrix, **kwargs, leaf_rotation= 90. , leaf_font_size=5.0, truncate_mode='level', p=4, above_threshold_color='gray')
+    #     p : int, optional
+    #     The ``p`` parameter for ``truncate_mode``.
+    # truncate_mode : str, optional
+    #     The dendrogram can be hard to read when the original
+    #     observation matrix from which the linkage is derived is
+    #     large. Truncation is used to condense the dendrogram. There
+    #     are several modes:
+
+    #     ``None``
+    #       No truncation is performed (default).
+    #       Note: ``'none'`` is an alias for ``None`` that's kept for
+    #       backward compatibility.
+   
     # Plot the threshold line if num_clusters is specified
     if num_clusters is not None:
         max_d = np.max(model.distances_)
         threshold = max_d / (num_clusters - 1)
-        plt.axhline(y=threshold, color='r', linestyle='--', label=f'{num_clusters} clusters')
+        plt.axhline(y=threshold, color='crimson', linestyle='--', label=f'{num_clusters} clusters', linewidth=1.5)
         plt.legend()
     
-    plt.xlabel('Sample index or (cluster size)')
-    plt.ylabel('Distance')
-    plt.title('Hierarchical Clustering Dendrogram')
+    plt.xlabel('Sample index or Cluster size', fontsize=10, fontfamily='Palatino Linotype')
+    plt.ylabel('Distance', fontsize=10, fontfamily='Palatino Linotype')
+    plt.title('Hierarchical Clustering Dendrogram', fontsize=13, fontfamily='Palatino Linotype')
     plt.show()
-    
+    plt.savefig('hierarchical_clustering_dendrogram.png')
+
     return threshold, linkage_matrix, counts, n_samples, model.labels_
+    
+
+
 
 
 

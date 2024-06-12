@@ -65,7 +65,7 @@ print('Estimated number of noise points: %d' % n_noise_)
 
 # plot_audio_segments(audio_segments, n_segments=5)
 # Save the results
-all_data['dbscan_cluster_membership'] = labels
+all_data['cluster_membership'] = labels
 all_data.to_csv(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'), index=False)
 
 file_csv = f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'
@@ -105,7 +105,7 @@ plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_e
 
 
 # extract segments from the audio files
-random_samples = get_random_samples(all_data, 'dbscan_cluster_membership', num_samples=5)
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
 print('Random samples selected')
 # # Plot the audio segments
 plot_audio_segments(random_samples, audio_path, clusterings_results_path, file_csv)
