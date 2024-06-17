@@ -57,65 +57,68 @@ core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
 core_samples_mask[db.core_sample_indices_] = True
 
 labels = db.labels_
-n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-n_noise_ = list(labels).count(-1)
+# Number of clusters in labels, ignoring noise if present.
+n_clusters_ = len(set(labels))
+
+# - (1 if -1 in labels else 0)
+# n_noise_ = list(labels).count(-1)
 
 print('Estimated number of clusters: %d' % n_clusters_)
-print('Estimated number of noise points: %d' % n_noise_)
+# print('Estimated number of noise points: %d' % n_noise_)
 
 # plot_audio_segments(audio_segments, n_segments=5)
 # Save the results
 all_data['cluster_membership'] = labels
 all_data.to_csv(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'), index=False)
 
-file_csv = f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'
+# file_csv = f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'
 
-# Perform UMAP for obtaining the standard embeddings for the clustering techniques
-umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
-standard_embedding = umap_reducer.fit_transform(features_scaled)
+# # Perform UMAP for obtaining the standard embeddings for the clustering techniques
+# umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
+# standard_embedding = umap_reducer.fit_transform(features_scaled)
 
-# Plot the UMAP embeddings with the cluster membership and noise points
-fig = plt.figure(figsize=(10, 8))
-ax = fig.add_subplot(111, projection='3d')
+# # Plot the UMAP embeddings with the cluster membership and noise points
+# fig = plt.figure(figsize=(10, 8))
+# ax = fig.add_subplot(111, projection='3d')
 
-custom_colors = ['Turquoise','Orange', 'MediumPurple', 'Darkred' ,'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
+# custom_colors = ['Turquoise','Orange', 'MediumPurple', 'Darkred' ,'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
 
-for j in range(n_clusters_):
-    ax.scatter(standard_embedding[labels == j, 0], 
-               standard_embedding[labels == j, 1], 
-               standard_embedding[labels == j, 2], 
-               c=custom_colors[j % len(custom_colors)], 
-               s=10, label=f'Cluster {j}', alpha=0.3)
+# for j in range(n_clusters_):
+#     ax.scatter(standard_embedding[labels == j, 0], 
+#                standard_embedding[labels == j, 1], 
+#                standard_embedding[labels == j, 2], 
+#                c=custom_colors[j % len(custom_colors)], 
+#                s=10, label=f'Cluster {j}', alpha=0.3)
 
-# Plot noise points
-ax.scatter(standard_embedding[labels == -1, 0], 
-           standard_embedding[labels == -1, 1], 
-           standard_embedding[labels == -1, 2], 
-           c='k', 
-           s=10, 
-           label='Noise', alpha=0.5)
+# # Plot noise points
+# ax.scatter(standard_embedding[labels == -1, 0], 
+#            standard_embedding[labels == -1, 1], 
+#            standard_embedding[labels == -1, 2], 
+#            c='k', 
+#            s=10, 
+#            label='Noise', alpha=0.5)
 
-plt.title('UMAP projection of the dataset with DBSCAN clustering')
-ax.set_xlabel('UMAP 1')
-ax.set_ylabel('UMAP 2')
-ax.set_zlabel('UMAP 3')
-plt.legend()
-plt.show()
-plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.png'))
-
-
-# extract segments from the audio files
-random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-print('Random samples selected')
-# # Plot the audio segments
-plot_audio_segments(random_samples, audio_path, clusterings_results_path, file_csv)
-print('Audio segments plotted')
+# plt.title('UMAP projection of the dataset with DBSCAN clustering')
+# ax.set_xlabel('UMAP 1')
+# ax.set_ylabel('UMAP 2')
+# ax.set_zlabel('UMAP 3')
+# plt.legend()
+# plt.show()
+# plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.png'))
 
 
-# Get the statistical report
+# # extract segments from the audio files
+# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+# print('Random samples selected')
+# # # Plot the audio segments
+# plot_audio_segments(random_samples, audio_path, clusterings_results_path, file_csv)
+# print('Audio segments plotted')
 
-stats = statistical_report(all_data, labels, n_clusters_, metadata, clusterings_results_path)
-print(stats)
+
+# # Get the statistical report
+
+# stats = statistical_report(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
+# print(stats)
 
 
-radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_, metadata, clusterings_results_path)
+radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)

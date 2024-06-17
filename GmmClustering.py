@@ -11,7 +11,7 @@ from gap_statistic import OptimalK
 from clustering_utils import find_elbow_point
 import itertools
 # Path to the directory containing the CSV files
-features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_'
+features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
 
 # Path to the metadata CSV file
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
@@ -53,7 +53,7 @@ init_params = 'kmeans'
 
 # Dictionary to store evaluation metrics for each number of components
 gmm_cluster_evaluation_per_number_clusters = {
-    n_comp: {'silhouette_score': 0, 'calinski_harabasz_score': 0, 'wcss': 999, 'bic': 0, 'aic': 0, 'number_of_clusters': 0} for n_comp in components
+    n_comp: {'silhouette_score': 0, 'calinski_harabasz_score': 0, 'wcss': 999, 'bic': 999, 'aic': 999, 'number_of_clusters': 0} for n_comp in components
 }
 
 
@@ -64,12 +64,6 @@ for n_comp in components:
     number_of_clusters = len(set(cluster_membership)) 
     # save the number of clusters
     gmm_cluster_evaluation_per_number_clusters[n_comp]['number_of_cluster'] = number_of_clusters
-
-    # # compute the centroid of each cluster
-    # centroids= []
-    # for cluster in range(n_comp):
-    #     centroids.append(np.mean(features_scaled[cluster_membership == cluster], axis=0))
-    # cluster_centers = np.array(centroids)
 
     # Compute the centroid of each cluster (using GMM's means_)
     cluster_centers = gmm.means_

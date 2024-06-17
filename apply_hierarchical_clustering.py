@@ -47,7 +47,7 @@ features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec','recording'
 features_scaled = scaler.fit_transform(features)
 
 
-n_clusters = 5
+n_clusters = 4
 
 agg = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward', compute_distances=True)
 
@@ -65,15 +65,15 @@ if membership is not None:
     print(membership)
 
 # Get 5 random samples for each cluster
-random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
 
-# Plot the audio segments
-plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+# # Plot the audio segments
+# plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
-# Get the statistical report
+# # Get the statistical report
 
-stats = statistical_report(all_data, cluster_membership,n_clusters, metadata, clusterings_results_path)
-print(stats)
+# stats = statistical_report(all_data, cluster_membership,n_clusters, metadata, clusterings_results_path)
+# print(stats)
 
 
 radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)

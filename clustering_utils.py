@@ -14,7 +14,7 @@ from math import pi
 import seaborn as sns
 import itertools
 from sklearn.mixture import GaussianMixture
-
+from sklearn.preprocessing import StandardScaler
 
 
 
@@ -323,46 +323,45 @@ def silhouette_visualizer(data, n_clusters, title, method='gmm', **kwargs):
 # Esempio d'uso:
 # silhouette_visualizer(data_scaled, n_clusters=3, title='Silhouette Plot', method='gmm', covariance_type='full', random_state=42)
 
+import os
+import matplotlib.pyplot as plt
+import pandas as pd
 
-
-
-
-
-
-
-
-# Funzione per creare e salvare il report statistico con boxplot e scatterplot sovrapposti
-def statistical_report(all_data, cluster_membership,n_clusters, metadata, output_folder):
-    # Crea un DataFrame per memorizzare il report statistico
+def statistical_report(all_data, cluster_membership, n_clusters, metadata, output_folder):
+    # Ensure the output directory exists
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Add cluster membership to all_data
     all_data['cluster_membership'] = cluster_membership
 
-    all_data =  all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
+    # Drop specified columns
+    all_data = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
     
-    # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
+    # Group by cluster membership and calculate the mean of each feature
     statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
     
-    
-    # Aggiungi il numero di campioni in ogni cluster
+    # Add the number of samples in each cluster
     n_samples = all_data['cluster_membership'].value_counts().sort_index()
     statistical_report_df['n_samples'] = n_samples
 
-    # Salva il report statistico su file CSV
+    # Save the statistical report to a CSV file
     csv_file_path = os.path.join(output_folder, 'statistical_report.csv')
     statistical_report_df.to_csv(csv_file_path, index=False)
 
-    # Converti ed esporta il report statistico in LaTeX
+    # Convert and export the statistical report to LaTeX
     latex_file_path = os.path.join(output_folder, 'statistical_report.tex')
     statistical_report_df.to_latex(latex_file_path, index=False)
 
-    # Colori accessibili per i boxplot e scatterplot
+    # Colors for clusters
     colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
     color_map = {i: color for i, color in enumerate(colors[:n_clusters])}
+    color_map[-1] = 'slategray'  # Color for the noise cluster
 
-    # Plot separati per gruppi di caratteristiche
-    features = list(all_data.columns[:-1])  # Escludi 'cluster_membership'
+    # Separate plots for groups of features
+    features = list(all_data.columns[:-1])  # Exclude 'cluster_membership'
     num_features = len(features)
-    features_per_plot = 4  # Numero di caratteristiche per ogni plot
-    num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calcola il numero di plot necessari
+    features_per_plot = 4  # Number of features per plot
+    num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calculate the number of plots needed
 
     for i in range(num_plots):
         start_idx = i * features_per_plot
@@ -371,35 +370,117 @@ def statistical_report(all_data, cluster_membership,n_clusters, metadata, output
 
         fig, axs = plt.subplots(1, len(plot_features), figsize=(20, 5))
 
-        # Assicurati che axs sia una lista anche se contiene un solo subplot
+        # Ensure axs is a list even if it contains a single subplot
         if len(plot_features) == 1:
             axs = [axs]
 
         for j, feature in enumerate(plot_features):
-            data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
-            
-            bplot = axs[j].boxplot(data, patch_artist=True, showfliers= False)
-            for patch, k in zip(bplot['boxes'], range(n_clusters)):
-                patch.set_alpha(0.1)
+            data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(-1, n_clusters)]
 
-            # Scatterplot sovrapposto
-            for cluster in range(n_clusters):
+            bplot = axs[j].boxplot(data, patch_artist=True, showfliers=False)
+            for patch, k in zip(bplot['boxes'], range(-1, n_clusters)):
+                patch.set_alpha(0.1)
+                patch.set_facecolor(color_map.get(k, 'slategray'))
+
+            # Overlay scatterplot
+            for cluster in range(-1, n_clusters):
                 cluster_data = all_data[all_data['cluster_membership'] == cluster]
-                axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
-                               alpha=0.3, c=color_map[cluster], edgecolor= color_map[cluster], s=13, label=f'Cluster {cluster}')
+                axs[j].scatter([cluster + 2] * len(cluster_data), cluster_data[feature], 
+                               alpha=0.3, c=color_map.get(cluster, 'slategray'), edgecolor=color_map.get(cluster, 'slategray'), s=13, label=f'Cluster {cluster}')
                 
                 axs[j].set_title(f'{feature} per cluster', size=7)
                 axs[j].set_xlabel('Cluster', size=7)
                 axs[j].set_ylabel('Value', size=7)
 
+            # Set x-tick labels to show cluster numbers including -1
+            axs[j].set_xticks(range(1, n_clusters + 2))
+            axs[j].set_xticklabels(['-1'] + [str(i) for i in range(n_clusters)])
+
         plt.tight_layout()
 
-        # Salva il plot su file
+        # Save the plot to a file
         plot_file_path = os.path.join(output_folder, f'statistical_report_part_{i+1}.png')
         plt.savefig(plot_file_path)
         # plt.show()
 
     return statistical_report_df
+
+
+
+
+
+
+# # Funzione per creare e salvare il report statistico con boxplot e scatterplot sovrapposti
+# def statistical_report(all_data, cluster_membership,n_clusters, metadata, output_folder):
+#     # Crea un DataFrame per memorizzare il report statistico
+#     all_data['cluster_membership'] = cluster_membership
+
+#     all_data =  all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
+    
+#     # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
+#     statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
+    
+    
+#     # Aggiungi il numero di campioni in ogni cluster
+#     n_samples = all_data['cluster_membership'].value_counts().sort_index()
+#     statistical_report_df['n_samples'] = n_samples
+
+#     # Salva il report statistico su file CSV
+#     csv_file_path = os.path.join(output_folder, 'statistical_report.csv')
+#     statistical_report_df.to_csv(csv_file_path, index=False)
+
+#     # Converti ed esporta il report statistico in LaTeX
+#     latex_file_path = os.path.join(output_folder, 'statistical_report.tex')
+#     statistical_report_df.to_latex(latex_file_path, index=False)
+
+#     # Colori accessibili per i boxplot e scatterplot
+#     colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
+#     color_map = {i: color for i, color in enumerate(colors[:n_clusters])}
+#     color_map[-1] = 'maroon'  # Colore per il cluster di rumore
+#     # Plot separati per gruppi di caratteristiche
+#     features = list(all_data.columns[:-1])  # Escludi 'cluster_membership'
+#     num_features = len(features)
+#     features_per_plot = 4  # Numero di caratteristiche per ogni plot
+#     num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calcola il numero di plot necessari
+
+#     for i in range( num_plots ):
+#         start_idx = i * features_per_plot
+#         end_idx = min(start_idx + features_per_plot, num_features)
+#         plot_features = features[start_idx:end_idx]
+
+#         fig, axs = plt.subplots(1, len(plot_features), figsize=(20, 5))
+
+#         # Assicurati che axs sia una lista anche se contiene un solo subplot
+#         if len(plot_features) == 1:
+#             axs = [axs]
+
+#         for j, feature in enumerate(plot_features):
+#             data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
+            
+#             bplot = axs[j].boxplot(data, patch_artist=True, showfliers= False)
+#             for patch, k in zip(bplot['boxes'], range(-1, n_clusters - 1)):
+#                 patch.set_alpha(0.1)
+#                 patch.set_facecolor(color_map.get(k, 'maroon'))
+
+                
+#                 # Overlay scatterplot
+#             for cluster in range(-1, n_clusters -1):
+#                 cluster_data = all_data[all_data['cluster_membership'] == cluster]
+#                 axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
+#                                alpha=0.3, c=color_map.get(cluster, 'maroon'), edgecolor=color_map.get(cluster, 'maroon'), s=13, label=f'Cluster {cluster}')
+                
+#                 axs[j].set_title(f'{feature} per cluster', size=7)
+#                 axs[j].set_xlabel('Cluster', size=7)
+#                 axs[j].set_ylabel('Value', size=7)
+
+#         plt.tight_layout()
+
+#         # Salva il plot su file
+#         plot_file_path = os.path.join(output_folder, f'statistical_report_part_{i+1}.png')
+#         plt.savefig(plot_file_path)
+#         # plt.show()
+
+#     return statistical_report_df
 
 
     # # To plot all features in a single plot
@@ -445,18 +526,29 @@ def statistical_report(all_data, cluster_membership,n_clusters, metadata, output
 
 
 def create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, output_folder):
-    # Aggiungi l'appartenenza al cluster al DataFrame
-    all_data['cluster_membership'] = cluster_membership
+  
+    all_data = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
 
-    # Elimina le colonne non necessarie
-    all_data = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec','call_id'], axis=1)
+    # Separare la colonna 'cluster_membership' dalle altre feature
+    cluster_membership_col = all_data['cluster_membership']
+    features = all_data.drop(['cluster_membership'], axis=1)
+
+    # Applicare lo scaling alle feature
+    scaled_features = StandardScaler().fit_transform(features)
+
+    # Convertire l'array scalato in DataFrame
+    scaled_features_df = pd.DataFrame(scaled_features, columns=features.columns)
+
+    # Riaggiungere la colonna 'cluster_membership'
+    scaled_features_df['cluster_membership'] = cluster_membership_col.values
 
     # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
-    statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
+    statistical_report_df = scaled_features_df.groupby('cluster_membership').mean().reset_index()
 
     # Aggiungi il numero di campioni in ogni cluster
-    n_samples = all_data['cluster_membership'].value_counts().sort_index()
-    statistical_report_df['n_samples'] = n_samples
+    n_samples = scaled_features_df['cluster_membership'].value_counts().sort_index()
+    statistical_report_df['n_samples'] = n_samples.values
+
 
     # Salva il report statistico su file CSV
     csv_file_path = os.path.join(output_folder, 'statistical_report.csv')
@@ -515,6 +607,116 @@ def create_statistical_report_with_radar_plots(all_data, cluster_membership, n_c
     # plt.show()
 
     return statistical_report_df
+
+
+def radarplot_individual(all_data, output_folder):
+    # Rimuovere colonne non necessarie
+    all_data = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
+
+    # Applicare lo scaling alle feature
+    scaled_features = StandardScaler().fit_transform(all_data.drop(['recording'], axis=1))
+
+    # Convertire l'array scalato in DataFrame
+    scaled_features_df = pd.DataFrame(scaled_features, columns=all_data.columns[:-1])
+
+    # Riaggiungere la colonna 'recording'
+    scaled_features_df['recording'] = all_data['recording'].values
+
+    # Raggruppa per recording e calcola la media di ogni caratteristica
+    statistical_report_df = scaled_features_df.groupby('recording').mean().reset_index()
+
+    # Aggiungi il numero di campioni in ogni recording
+    n_samples = scaled_features_df['recording'].value_counts().sort_index()
+    statistical_report_df['n_samples'] = n_samples.values
+
+    # Salva il report statistico su file CSV
+    csv_file_path = os.path.join(output_folder, 'statistical_report.csv')
+    statistical_report_df.to_csv(csv_file_path, index=False)
+
+    # Converti ed esporta il report statistico in LaTeX
+    latex_file_path = os.path.join(output_folder, 'statistical_report.tex')
+    statistical_report_df.to_latex(latex_file_path, index=False)
+
+    # Creare radar plot per visualizzare le variazioni delle feature per recording
+    features = list(all_data.columns[:-1])  # Escludi 'recording'
+    num_features = len(features)
+    num_files = len(statistical_report_df)
+
+    custom_colors = [
+        "steelblue", "darkcyan", "mediumseagreen", 
+        "indianred", "goldenrod", "orchid", 
+        "lightskyblue", "limegreen", "tomato", 
+        "mediumslateblue", "darkolivegreen", "cornflowerblue"
+    ]
+
+    # Funzione per creare un singolo radar plot
+    def create_radar_plot(data, title, color, ax):
+        categories = list(data.keys())
+        values = list(data.values())
+        values += values[:1]  # Chiudi il cerchio
+
+        angles = [n / float(num_features) * 2 * pi for n in range(num_features)]
+        angles += angles[:1]
+
+        ax.set_theta_offset(pi / 2)
+        ax.set_theta_direction(-1)
+        
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(categories, color='dimgrey', size=5, fontweight='bold')
+        
+        ax.plot(angles, values, color=color, linewidth=2, linestyle='solid')
+        ax.fill(angles, values, color=color, alpha=0.3)
+
+        ax.set_title(title, size=12, color=color, y=1.1)
+
+    # Creare una griglia di radar plot
+    num_cols = 3
+    num_rows = int(np.ceil(num_files / num_cols))
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(num_cols * 9, num_rows * 9), subplot_kw=dict(polar=True))
+
+    axs = axs.flatten()
+
+    for i, row in statistical_report_df.iterrows():
+        data = row[features].to_dict()
+        color = custom_colors[i % len(custom_colors)]
+        
+        # Controllo per gestire il numero variabile di plot
+        if i < len(axs) and axs[i] is not None:
+            create_radar_plot(data, f'Recording of {row["recording"]}', color, axs[i])
+
+    # Rimuovere gli assi extra se non ci sono dati sufficienti per riempire la griglia
+    for j in range(len(statistical_report_df), len(axs)):
+        if axs[j] is not None:
+            fig.delaxes(axs[j])
+
+    plt.tight_layout()
+    plot_file_path = os.path.join(output_folder, 'radar_plots_recordings.png')
+    plt.savefig(plot_file_path)
+    # plt.show()
+
+    # Aggiungi la gestione per plottare 6 radar plot per griglia
+    if num_files > 6:
+        for k in range(2):
+            fig, axs = plt.subplots(2, 3, figsize=(18, 12), subplot_kw=dict(polar=True))
+            axs = axs.flatten()
+            
+            start_idx = k * 6
+            end_idx = min(start_idx + 6, num_files)
+            
+            for idx in range(start_idx, end_idx):
+                data = statistical_report_df.iloc[idx][features].to_dict()
+                color = custom_colors[idx % len(custom_colors)]
+                
+                create_radar_plot(data, f'Recording of {statistical_report_df.iloc[idx]["recording"]}', color, axs[idx - start_idx])
+            
+            plt.tight_layout()
+            plot_file_path = os.path.join(output_folder, f'radar_plots_recordings_{k + 1}.png')
+            plt.savefig(plot_file_path)
+
+    return statistical_report_df
+
+
+
 
 
 

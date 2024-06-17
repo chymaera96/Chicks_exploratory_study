@@ -19,7 +19,7 @@ from clustering_utils import get_random_samples, plot_audio_segments, statistica
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
 audio_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\high_quality_dataset'
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_fuzzy_clustering_8'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_fuzzy_clustering_'
 
 # Create the results directory if it doesn't exist
 if not os.path.exists(clusterings_results_path):
@@ -97,19 +97,19 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 # ax = fig.add_subplot(111, projection='3d')
 
 # # # Define custom colors for the clusters
-# custom_colors = ["darkorange", "turquoise",  'red',  'DarkGreen', 'LightCoral', 'MediumSlateBlue', 'ForestGreen', 'DarkTurquoise', 'DarkRed', 'DarkOrange', 'DarkGreen', 'DarkBlue', 'DarkViolet', 'DarkGray']
+# custom_colors = ["darkorange", "turquoise", 'lightGreen', 'LightCoral', 'MediumSlateBlue', 'pink', 'tial', 'yellow', 'DarkOrange', 'DarkGreen', 'DarkBlue', 'DarkViolet']
 
 
 
-# # Plot data points with their cluster membership
+# # Plot data points with their cluster memberships
 # for j in range(n_clusters):
 #     ax.scatter(standard_embedding[cluster_membership == j, 0], 
 #                standard_embedding[cluster_membership == j, 1], 
 #                standard_embedding[cluster_membership == j, 2],
-#                color=custom_colors[j % len(custom_colors)], alpha=0.2, label=f'Cluster {j+1}', s=7)
+#                color=custom_colors[j % len(custom_colors)], alpha=0.1, label=f'Cluster {j+1}', s=7)
 
 # # Plot the cluster centers
-# ax.scatter(umap_centroids[:, 0], umap_centroids[:, 1], umap_centroids[:, 2], color='r', marker='x', s=100, label='Centroids')
+# ax.scatter(umap_centroids[:, 0], umap_centroids[:, 1], umap_centroids[:, 2], color='crimson', marker='x', s=80, label='Centroids')
 # for j in range(n_clusters):
 #     ax.text(umap_centroids[j, 0], umap_centroids[j, 1], umap_centroids[j, 2], str(j+1), color='k', fontsize=12, fontweight='bold')
 
@@ -120,7 +120,7 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 
 # plt.legend()
 # plt.tight_layout()
-# plt.savefig(os.path.join(clusterings_results_path, f'fuzzy_cluster_{n_clusters}_membership_3d.png'))
+# plt.savefig(os.path.join(clusterings_results_path, f'fuzzy_cluster_{n_clusters}_membership_4d.png'))
 # plt.show()
 
 
@@ -157,8 +157,8 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 
 # print('Fuzzy clustering completed')
 
-stats = statistical_report(all_data, cluster_membership,n_clusters, metadata, clusterings_results_path)
-print(stats)
+# stats = statistical_report(all_data, cluster_membership,n_clusters, metadata, clusterings_results_path)
+# print(stats)
 
 
 radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)

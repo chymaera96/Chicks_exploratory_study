@@ -8,6 +8,9 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_mutual_info_score
 from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 
 # Define the file paths
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
@@ -37,20 +40,12 @@ scaler = StandardScaler()
 features = all_data.drop(['recording', 'Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
-# Determine the number of clusters using the elbow method with WCSS
-wcss_values = []
-for i in range(1, 12):
-    kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=0)
-    kmeans.fit(features_scaled)
-    wcss_values.append(kmeans.inertia_)
-
-# Find the elbow point
-knee_locator = KneeLocator(range(1, 12), wcss_values, curve='convex', direction='decreasing')
-best_n_clusters = knee_locator.elbow
-
+best_n_clusters = 5
 # Perform K-Means clustering with the determined number of clusters
-kmeans = KMeans(n_clusters=best_n_clusters, init='k-means++', max_iter=300, n_init=10, random_state=0)
-cluster_membership = kmeans.fit_predict(features_scaled)
+kmeans = KMeans(n_clusters=best_n_clusters, init='k-means++', max_iter=300, n_init=10, random_state=42)
+kmeans.fit(features_scaled)
+
+cluster_membership = kmeans.labels_
 
 # Add cluster membership to the dataframe
 all_data['cluster_membership'] = cluster_membership
@@ -58,17 +53,58 @@ all_data['cluster_membership'] = cluster_membership
 # Save the results
 all_data.to_csv(os.path.join(clusterings_results_path, f'kmeans_cluster_{best_n_clusters}_membership.csv'), index=False)
 
-# Perform UMAP for obtaining the standard embeddings for the clustering techniques
-umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
-standard_embedding = umap_reducer.fit_transform(features_scaled)
+# # Perform UMAP for obtaining the standard embeddings for the clustering techniques
+# umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
+# standard_embedding = umap_reducer.fit_transform(features_scaled)
 
-umap_centroids = np.dot(kmeans.cluster_centers_, umap_reducer.embedding_) / np.sum(kmeans.cluster_centers_, axis=1)[:, None]
 
-# Plot the results and centroids
-# (code for plotting omitted for brevity)
+# # Transform the KMeans cluster centers using the UMAP reducer
+# umap_centroids = umap_reducer.transform(kmeans.cluster_centers_)
 
-# Get statistical report and radar plots
-stats = statistical_report(all_data, cluster_membership, best_n_clusters, metadata, clusterings_results_path)
-print(stats)
+# print("Original Data Shape:", features_scaled.shape)
+# print("UMAP Embedding Shape:", standard_embedding.shape)
+# print("KMeans Cluster Centers Shape:", kmeans.cluster_centers_.shape)
+# print("Transformed UMAP Centroids Shape:", umap_centroids.shape)
 
-radar_results = create_statistical_report_with_radar_plots(all_data, cluster_membership, best_n_clusters, metadata, clusterings_results_path)
+
+
+
+# colors = ['lightgreen', 'lightskyblue', 'lightpink', 'navajowhite', 'lightseagreen', 'lightcoral', 'lightgrey', 'lightyellow', 'lightblue', 'lightgreen']
+# # Plot the UMAP embedding with the cluster membership in 3 dimensions
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+
+# for i in range(best_n_clusters):
+#     ax.scatter(standard_embedding[cluster_membership == i, 0], standard_embedding[cluster_membership == i, 1],
+#                standard_embedding[cluster_membership == i, 2], c=colors[i], label=f'Cluster {i}', alpha=0.1)
+
+# # Plot the cluster centers
+# ax.scatter(umap_centroids[:, 0], umap_centroids[:, 1], umap_centroids[:, 2], color='crimson', marker='x', s=80, label='Centroids')
+# for j in range(best_n_clusters):
+#     ax.text(umap_centroids[j, 0], umap_centroids[j, 1], umap_centroids[j, 2], str(j+1), color='k', fontsize=10, fontweight='bold')
+
+# ax.set_title(f'KMeans Clustering with {best_n_clusters} clusters')
+# ax.set_xlabel('UMAP 1')
+# ax.set_ylabel('UMAP 2')
+# ax.set_zlabel('UMAP 3')
+# ax.legend()
+# plt.savefig(os.path.join(clusterings_results_path, f'umap_embedding_{best_n_clusters}_clusters.png'))
+# plt.show()
+
+
+
+# # Get random samples
+# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+# print(' Random samples selected')
+# # # Plot the audio segments
+# plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+
+# print('KMeans clustering completed')
+
+# stats = statistical_report(all_data, cluster_membership,best_n_clusters, metadata, clusterings_results_path)
+
+
+radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, best_n_clusters, metadata, clusterings_results_path)
+
+# print(stats)
+print(radar_results)
