@@ -15,7 +15,8 @@ from sklearn.mixture import GaussianMixture
 
 from sklearn.cluster import DBSCAN
 from clustering_utils import get_random_samples, plot_audio_segments
-from clustering_utils import statistical_report, create_statistical_report_with_radar_plots
+from clustering_utils import statistical_report, create_statistical_report_with_radar_plots, plot_and_save_audio_segments
+
 
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
@@ -107,12 +108,16 @@ all_data.to_csv(os.path.join(clusterings_results_path, f'dbscan_cluster_membersh
 # plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.png'))
 
 
-# # extract segments from the audio files
-# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-# print('Random samples selected')
+# extract segments from the audio files
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+print('Random samples selected')
 # # # Plot the audio segments
 # plot_audio_segments(random_samples, audio_path, clusterings_results_path, file_csv)
 # print('Audio segments plotted')
+
+
+# Plot the audio segments and save audio files
+plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 
 # # Get the statistical report
@@ -121,4 +126,4 @@ all_data.to_csv(os.path.join(clusterings_results_path, f'dbscan_cluster_membersh
 # print(stats)
 
 
-radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
+# radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)

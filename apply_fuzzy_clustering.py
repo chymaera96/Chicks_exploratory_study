@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_mutual_info_score
 from sklearn.metrics import calinski_harabasz_score
 # from scipy.cluster.hierarchy import dendrogram, linkage
-from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots
+from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots, plot_and_save_audio_segments
 
 # Define the file paths
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
@@ -150,10 +150,14 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 
 
 # # Get random samples
-# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
 # print(' Random samples selected')
 # # # Plot the audio segments
 # plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+
+
+# Plot the audio segments and save audio files
+plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 # print('Fuzzy clustering completed')
 
@@ -161,6 +165,6 @@ print(f"Dimensioni umap_centroids: {umap_centroids.shape}")
 # print(stats)
 
 
-radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)
+# radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)
 
 

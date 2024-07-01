@@ -7,8 +7,7 @@ from kneed import KneeLocator
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_mutual_info_score
-from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots
-import matplotlib.pyplot as plt
+from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots, plot_and_save_audio_segments
 import matplotlib.cm as cm
 
 
@@ -93,18 +92,22 @@ all_data.to_csv(os.path.join(clusterings_results_path, f'kmeans_cluster_{best_n_
 
 
 
-# # Get random samples
-# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-# print(' Random samples selected')
+# Get random samples
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+print(' Random samples selected')
+
+
 # # # Plot the audio segments
 # plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+
+plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 # print('KMeans clustering completed')
 
 # stats = statistical_report(all_data, cluster_membership,best_n_clusters, metadata, clusterings_results_path)
 
 
-radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, best_n_clusters, metadata, clusterings_results_path)
+# radar_results= create_statistical_report_with_radar_plots(all_data, cluster_membership, best_n_clusters, metadata, clusterings_results_path)
 
 # print(stats)
-print(radar_results)
+# print(radar_results)

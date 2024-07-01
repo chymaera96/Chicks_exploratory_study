@@ -13,6 +13,7 @@ import skfuzzy as fuzz
 from math import pi
 import seaborn as sns
 import itertools
+import soundfile as sf
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 
@@ -94,16 +95,6 @@ def plot_dendrogram(model, num_clusters=None, **kwargs):
 
 
 
-
-
-
-
-
-
-
-
-
-
 # Define the function to find the elbow point
 def find_elbow_point(scores):
     n_points = len(scores)
@@ -121,8 +112,6 @@ def find_elbow_point(scores):
 
 
 
-
-
 # Function to get 5 random samples for each cluster
 def get_random_samples(df, cluster_col, num_samples=5):
     random_samples = {}
@@ -137,15 +126,6 @@ def get_random_samples(df, cluster_col, num_samples=5):
 
 
 
-
-
-
-
-
-
-
-
-
 def segment_spectrogram(spectrogram, onsets, offsets, sr=44100):
     # Initialize lists to store spectrogram slices
     calls_S = []
@@ -156,15 +136,15 @@ def segment_spectrogram(spectrogram, onsets, offsets, sr=44100):
         offset_frames = lb.time_to_frames(offset, sr=sr)
 
         call_spec = spectrogram[:, onset_frames: offset_frames]
+        # call_audio = audio_data[onset_frames: offset_frames]
 
         # Append the scaled log-spectrogram slice to the calls list
         calls_S.append(call_spec)
+        # calls_audio.append(call_audio)
     
     return calls_S
 
-
-
-  
+         
 
 # Function to extract and plot audio segments
 def plot_audio_segments(samples_dict, audio_path, clusterings_results_path, cluster_membership_label):
@@ -212,36 +192,60 @@ def plot_audio_segments(samples_dict, audio_path, clusterings_results_path, clus
         plot_filename = f'cluster_{cluster}_{cluster_membership_label}.png'
         plt.savefig(os.path.join(clusterings_results_path, plot_filename))
 
-  
+
+def plot_and_save_audio_segments(samples_dict, audio_path, clusterings_results_path, cluster_membership_label):
+    """
+    Extract, plot, and save audio segments for each cluster.
+    
+    Args:
+    samples_dict (dict): Dictionary of samples for each cluster
+    audio_path (str): Path to the directory containing audio files
+    clusterings_results_path (str): Path to save the results
+    cluster_membership_label (str): Label for the cluster membership
+    """
+    for cluster, samples in samples_dict.items():
+        fig, axes = plt.subplots(1, len(samples), figsize=(2 * len(samples), 2))
+        fig.suptitle(f'Cluster {cluster} Audio Segments')
+        if len(samples) == 1:
+            axes = [axes]
+
+        cluster_audio_dir = os.path.join(clusterings_results_path, f'cluster_{cluster}_audio')
+        os.makedirs(cluster_audio_dir, exist_ok=True)
+
+        for idx, (i, sample) in enumerate(samples.iterrows()):
+            audio_file = os.path.join(audio_path, sample['recording'] + '.wav')
+            if os.path.exists(audio_file):
+                data, sr = lb.load(audio_file, sr=44100)
+                S = lb.feature.melspectrogram(y=data, sr=sr, n_mels=128, fmin=2000, fmax=10000)
+                log_S = lb.power_to_db(S, ref=np.max)
+
+                # Use your existing segment_spectrogram function
+                calls_S = segment_spectrogram(log_S, [sample['onsets_sec']], [sample['offsets_sec']], sr=sr)
+                call_S = calls_S[0]
+
+                # Extract audio segment
+                onset_samples = int(sample['onsets_sec'] * sr)
+                offset_samples = int(sample['offsets_sec'] * sr)
+                call_audio = data[onset_samples:offset_samples]
+
+                img = axes[idx].imshow(call_S, aspect='auto', origin='lower', cmap='magma')
+                axes[idx].set_title(f'Call {idx + 1} of {sample["recording"]} \n cluster {cluster}', fontsize=6)
+                axes[idx].set_xlabel('Time', fontsize=5)
+                axes[idx].set_ylabel('Frequency', fontsize=5)
+                fig.colorbar(img, ax=axes[idx])
+
+                # Save the audio file
+                audio_filename = os.path.join(cluster_audio_dir, f'call_{idx + 1}_{sample["recording"]}.wav')
+                sf.write(audio_filename, call_audio, sr)
+            else:
+                print(f'Audio file {audio_file} not found')
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plot_filename = f'cluster_{cluster}_{cluster_membership_label}.png'
+        plt.savefig(os.path.join(clusterings_results_path, plot_filename))
+        plt.close(fig)
 
 
-
-
-# # Define a function to plot UMAP with clusters
-# def plot_umap_with_clusters(ax, embedding, labels, n_clusters, title):
-#     ax.scatter(embedding[:, 0], embedding[:, 1], c=labels, s=10, cmap='Spectral')
-#     ax.set_title(f'UMAP with {n_clusters} clusters')
-#     ax.set_xlabel('UMAP Dimension 1')
-#     ax.set_ylabel('UMAP Dimension 2')
-
-# # Find elbow points
-# elbow_points = {
-#     "BIC": best_elbow_n_clusters_bic,
-#     "Silhouette": best_elbow_n_clusters_silhouette,
-#     "Calinski": best_elbow_n_clusters_calinski
-# }
-
-# # Create subplots
-# fig, axs = plt.subplots(1, len(elbow_points), figsize=(20, 5))
-
-# # Plot the best model for each score
-# for i, (score_name, n_clusters) in enumerate(elbow_points.items()):
-#     gmm = GaussianMixture(n_components=n_clusters, random_state=42).fit(data_scaled)
-#     labels = gmm.predict(data_scaled)
-#     plot_umap_with_clusters(axs[i], standard_embedding, labels, n_clusters, score_name)
-
-# plt.tight_layout()
-# plt.show()
 
 
 
@@ -404,84 +408,6 @@ def statistical_report(all_data, cluster_membership, n_clusters, metadata, outpu
         # plt.show()
 
     return statistical_report_df
-
-
-
-
-
-
-# # Funzione per creare e salvare il report statistico con boxplot e scatterplot sovrapposti
-# def statistical_report(all_data, cluster_membership,n_clusters, metadata, output_folder):
-#     # Crea un DataFrame per memorizzare il report statistico
-#     all_data['cluster_membership'] = cluster_membership
-
-#     all_data =  all_data.drop(['recording','Call Number', 'onsets_sec', 'offsets_sec', 'call_id'], axis=1)
-    
-#     # Raggruppa per appartenenza al cluster e calcola la media di ogni caratteristica
-#     statistical_report_df = all_data.groupby('cluster_membership').mean().reset_index()
-    
-    
-#     # Aggiungi il numero di campioni in ogni cluster
-#     n_samples = all_data['cluster_membership'].value_counts().sort_index()
-#     statistical_report_df['n_samples'] = n_samples
-
-#     # Salva il report statistico su file CSV
-#     csv_file_path = os.path.join(output_folder, 'statistical_report.csv')
-#     statistical_report_df.to_csv(csv_file_path, index=False)
-
-#     # Converti ed esporta il report statistico in LaTeX
-#     latex_file_path = os.path.join(output_folder, 'statistical_report.tex')
-#     statistical_report_df.to_latex(latex_file_path, index=False)
-
-#     # Colori accessibili per i boxplot e scatterplot
-#     colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
-#     color_map = {i: color for i, color in enumerate(colors[:n_clusters])}
-#     color_map[-1] = 'maroon'  # Colore per il cluster di rumore
-#     # Plot separati per gruppi di caratteristiche
-#     features = list(all_data.columns[:-1])  # Escludi 'cluster_membership'
-#     num_features = len(features)
-#     features_per_plot = 4  # Numero di caratteristiche per ogni plot
-#     num_plots = (num_features + features_per_plot - 1) // features_per_plot  # Calcola il numero di plot necessari
-
-#     for i in range( num_plots ):
-#         start_idx = i * features_per_plot
-#         end_idx = min(start_idx + features_per_plot, num_features)
-#         plot_features = features[start_idx:end_idx]
-
-#         fig, axs = plt.subplots(1, len(plot_features), figsize=(20, 5))
-
-#         # Assicurati che axs sia una lista anche se contiene un solo subplot
-#         if len(plot_features) == 1:
-#             axs = [axs]
-
-#         for j, feature in enumerate(plot_features):
-#             data = [all_data[all_data['cluster_membership'] == k][feature] for k in range(n_clusters)]
-            
-#             bplot = axs[j].boxplot(data, patch_artist=True, showfliers= False)
-#             for patch, k in zip(bplot['boxes'], range(-1, n_clusters - 1)):
-#                 patch.set_alpha(0.1)
-#                 patch.set_facecolor(color_map.get(k, 'maroon'))
-
-                
-#                 # Overlay scatterplot
-#             for cluster in range(-1, n_clusters -1):
-#                 cluster_data = all_data[all_data['cluster_membership'] == cluster]
-#                 axs[j].scatter([cluster + 1] * len(cluster_data), cluster_data[feature], 
-#                                alpha=0.3, c=color_map.get(cluster, 'maroon'), edgecolor=color_map.get(cluster, 'maroon'), s=13, label=f'Cluster {cluster}')
-                
-#                 axs[j].set_title(f'{feature} per cluster', size=7)
-#                 axs[j].set_xlabel('Cluster', size=7)
-#                 axs[j].set_ylabel('Value', size=7)
-
-#         plt.tight_layout()
-
-#         # Salva il plot su file
-#         plot_file_path = os.path.join(output_folder, f'statistical_report_part_{i+1}.png')
-#         plt.savefig(plot_file_path)
-#         # plt.show()
-
-#     return statistical_report_df
-
 
     # # To plot all features in a single plot
     # fig, axs = plt.subplots(nrows=6, ncols=5, figsize=(40, 25))  # Creiamo una griglia di subplot 6x5 (per un totale di 30 spazi)

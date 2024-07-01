@@ -15,7 +15,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 
 from sklearn.cluster import AgglomerativeClustering
 from clustering_utils import get_random_samples, plot_audio_segments, plot_dendrogram
-from clustering_utils import statistical_report, create_statistical_report_with_radar_plots
+from clustering_utils import statistical_report, create_statistical_report_with_radar_plots, plot_and_save_audio_segments
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
@@ -47,7 +47,7 @@ features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec','recording'
 features_scaled = scaler.fit_transform(features)
 
 
-n_clusters = 4
+n_clusters = 5
 
 agg = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward', compute_distances=True)
 
@@ -65,7 +65,9 @@ if membership is not None:
     print(membership)
 
 # Get 5 random samples for each cluster
-# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+# Plot the audio segments and save audio files
+plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 # # Plot the audio segments
 # plot_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
@@ -76,4 +78,4 @@ if membership is not None:
 # print(stats)
 
 
-radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)
+# radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)

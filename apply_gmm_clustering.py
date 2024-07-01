@@ -16,7 +16,7 @@ from sklearn.mixture import GaussianMixture
 
 from sklearn.cluster import AgglomerativeClustering
 from clustering_utils import get_random_samples, plot_audio_segments
-from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots
+from clustering_utils import get_random_samples, plot_audio_segments, statistical_report, create_statistical_report_with_radar_plots, plot_and_save_audio_segments
 
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
@@ -79,9 +79,13 @@ standard_embedding = umap_reducer.fit_transform(features_scaled)
 # plt.legend()
 # plt.show()
 
-# # extract segments from the audio files
-# random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-# print('Random samples selected')
+# extract segments from the audio files
+random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
+print('Random samples selected')
+
+plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
+
+
 # # # Plot the audio segments
 # plot_audio_segments(random_samples, audio_path, clusterings_results_path, f'gaussian_mixture_{n_components}_membership')
 # print('Audio segments plotted')
@@ -93,4 +97,4 @@ gmm.predict_proba(features_scaled)
 # print(stats)
 
 
-radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_components, metadata, clusterings_results_path)
+# radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_components, metadata, clusterings_results_path)
