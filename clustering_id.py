@@ -20,9 +20,9 @@ from kneed import KneeLocator
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 
 # Definisci i percorsi dei file
-file_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
+file_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_without_jtfs'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
-clustering_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\individual_clustering_results\\gmm_clustering_results'
+clustering_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\individual_clustering_results\\_without_jtfs__'
 # Check if the directory exists, if not, create it
 if not os.path.exists(clustering_results_path):
     os.makedirs(clustering_results_path)
