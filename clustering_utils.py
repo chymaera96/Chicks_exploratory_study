@@ -22,6 +22,38 @@ from sklearn.preprocessing import StandardScaler
 
 
 
+
+def split_data_recordings(all_data, test_size_per_group=2, group_col='recording'):
+    """
+    Split data into train and test sets based on a grouping column (e.g., recording).
+    Ensures that no overlap exists between the train and test sets based on the grouping.
+
+    Parameters:
+    - all_data: DataFrame containing all data.
+    - test_size_per_group: Number of groups (e.g., recordings) to include in the test set.
+    - group_col: Column to group by (e.g., 'recording').
+
+    Returns:
+    - train_data: Training dataset.
+    - test_data: Test dataset.
+    """
+    unique_groups = all_data[group_col].unique()
+    test_groups = np.random.choice(unique_groups, test_size_per_group, replace=False)
+    
+    test_data = all_data[all_data[group_col].isin(test_groups)]
+    train_data = all_data[~all_data[group_col].isin(test_groups)]
+    
+    return train_data, test_data
+
+
+
+
+
+
+
+
+
+
 def plot_dendrogram(model, num_clusters=None, **kwargs):
     """
     Plot a dendrogram for hierarchical clustering.
@@ -193,57 +225,56 @@ def plot_audio_segments(samples_dict, audio_path, clusterings_results_path, clus
         plt.savefig(os.path.join(clusterings_results_path, plot_filename))
 
 
-def plot_and_save_audio_segments(samples_dict, audio_path, clusterings_results_path, cluster_membership_label):
+def plot_and_save_audio_segments(representative_calls, audio_path, save_path, cluster_label):
     """
-    Extract, plot, and save audio segments for each cluster.
+    Extract, plot, and save audio segments for representative calls of a cluster.
     
     Args:
-    samples_dict (dict): Dictionary of samples for each cluster
+    representative_calls (DataFrame): DataFrame containing representative calls for a cluster
     audio_path (str): Path to the directory containing audio files
-    clusterings_results_path (str): Path to save the results
-    cluster_membership_label (str): Label for the cluster membership
+    save_path (str): Path to save the results
+    cluster_label (str): Label for the cluster
     """
-    for cluster, samples in samples_dict.items():
-        fig, axes = plt.subplots(1, len(samples), figsize=(2 * len(samples), 2))
-        fig.suptitle(f'Cluster {cluster} Audio Segments')
-        if len(samples) == 1:
-            axes = [axes]
+    fig, axes = plt.subplots(1, len(representative_calls), figsize=(2 * len(representative_calls), 2))
+    fig.suptitle(f'{cluster_label} Audio Segments')
+    if len(representative_calls) == 1:
+        axes = [axes]
 
-        cluster_audio_dir = os.path.join(clusterings_results_path, f'cluster_{cluster}_audio')
-        os.makedirs(cluster_audio_dir, exist_ok=True)
+    cluster_audio_dir = os.path.join(save_path, 'audio')
+    os.makedirs(cluster_audio_dir, exist_ok=True)
 
-        for idx, (i, sample) in enumerate(samples.iterrows()):
-            audio_file = os.path.join(audio_path, sample['recording'] + '.wav')
-            if os.path.exists(audio_file):
-                data, sr = lb.load(audio_file, sr=44100)
-                S = lb.feature.melspectrogram(y=data, sr=sr, n_mels=128, fmin=2000, fmax=10000)
-                log_S = lb.power_to_db(S, ref=np.max)
+    for idx, (_, call) in enumerate(representative_calls.iterrows()):
+        audio_file = os.path.join(audio_path, call['recording'] + '.wav')
+        if os.path.exists(audio_file):
+            data, sr = lb.load(audio_file, sr=44100)
+            S = lb.feature.melspectrogram(y=data, sr=sr, n_mels=128, fmin=2000, fmax=10000)
+            log_S = lb.power_to_db(S, ref=np.max)
 
-                # Use your existing segment_spectrogram function
-                calls_S = segment_spectrogram(log_S, [sample['onsets_sec']], [sample['offsets_sec']], sr=sr)
-                call_S = calls_S[0]
+            # Use your existing segment_spectrogram function
+            calls_S = segment_spectrogram(log_S, [call['onsets_sec']], [call['offsets_sec']], sr=sr)
+            call_S = calls_S[0]
 
-                # Extract audio segment
-                onset_samples = int(sample['onsets_sec'] * sr)
-                offset_samples = int(sample['offsets_sec'] * sr)
-                call_audio = data[onset_samples:offset_samples]
+            # Extract audio segment
+            onset_samples = int(call['onsets_sec'] * sr)
+            offset_samples = int(call['offsets_sec'] * sr)
+            call_audio = data[onset_samples:offset_samples]
 
-                img = axes[idx].imshow(call_S, aspect='auto', origin='lower', cmap='magma')
-                axes[idx].set_title(f'Call {idx + 1} of {sample["recording"]} \n cluster {cluster}', fontsize=6)
-                axes[idx].set_xlabel('Time', fontsize=5)
-                axes[idx].set_ylabel('Frequency', fontsize=5)
-                fig.colorbar(img, ax=axes[idx])
+            img = axes[idx].imshow(call_S, aspect='auto', origin='lower', cmap='magma')
+            axes[idx].set_title(f'Call {idx + 1} of {call["recording"]} \n {cluster_label}', fontsize=6)
+            axes[idx].set_xlabel('Time', fontsize=5)
+            axes[idx].set_ylabel('Frequency', fontsize=5)
+            fig.colorbar(img, ax=axes[idx])
 
-                # Save the audio file
-                audio_filename = os.path.join(cluster_audio_dir, f'call_{idx + 1}_{sample["recording"]}.wav')
-                sf.write(audio_filename, call_audio, sr)
-            else:
-                print(f'Audio file {audio_file} not found')
+            # Save the audio file
+            audio_filename = os.path.join(cluster_audio_dir, f'call_{idx + 1}_{call["recording"]}.wav')
+            sf.write(audio_filename, call_audio, sr)
+        else:
+            print(f'Audio file {audio_file} not found')
 
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plot_filename = f'cluster_{cluster}_{cluster_membership_label}.png'
-        plt.savefig(os.path.join(clusterings_results_path, plot_filename))
-        plt.close(fig)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plot_filename = f'{cluster_label}.png'
+    plt.savefig(os.path.join(save_path, plot_filename))
+    plt.close(fig)
 
 
 
@@ -327,9 +358,7 @@ def silhouette_visualizer(data, n_clusters, title, method='gmm', **kwargs):
 # Esempio d'uso:
 # silhouette_visualizer(data_scaled, n_clusters=3, title='Silhouette Plot', method='gmm', covariance_type='full', random_state=42)
 
-import os
-import matplotlib.pyplot as plt
-import pandas as pd
+
 
 def statistical_report(all_data, cluster_membership, n_clusters, metadata, output_folder):
     # Ensure the output directory exists
@@ -485,7 +514,7 @@ def create_statistical_report_with_radar_plots(all_data, cluster_membership, n_c
     statistical_report_df.to_latex(latex_file_path, index=False)
 
     # Creare radar plot per visualizzare le variazioni delle feature per cluster
-    features = list(all_data.columns[:-1])  # Escludi 'cluster_membership'
+    features = list(all_data.columns[:-3])  # Escludi 'cluster_membership'
     num_features = len(features)
     num_clusters = len(statistical_report_df)
 
@@ -643,16 +672,68 @@ def radarplot_individual(all_data, output_folder):
 
 
 
+def plot_and_save_extreme_calls(audio_data, audio_path, clusterings_results_path):
+    """
+    Extract, plot, and save spectrograms and audio of selected calls.
+
+    Args:
+    audio_data (pd.DataFrame): DataFrame containing audio metadata and cluster probabilities
+    audio_path (str): Path to the directory containing audio files
+    clusterings_results_path (str): Path to save the results
+    """
+    for idx, sample in audio_data.iterrows():
+        try:
+            audio_file = os.path.join(audio_path, sample['call_id'].split('_')[0] + '_d0.wav')
+
+            if os.path.exists(audio_file):
+                data, sr = lb.load(audio_file, sr=44100)
+
+                # Extract the specific call
+                onset_samples = int(sample['onsets_sec'] * sr)
+                offset_samples = int(sample['offsets_sec'] * sr)
+                call_audio = data[onset_samples:offset_samples]
+
+                # Compute mel spectrogram
+                S = lb.feature.melspectrogram(y=call_audio, sr=sr, n_mels=128, fmin=2000, fmax=10000)
+                log_S = lb.power_to_db(S, ref=np.max)
+
+                # Plot the spectrogram
+                fig, ax = plt.subplots(figsize=(10, 5))
+                img = ax.imshow(log_S, aspect='auto', origin='lower', cmap='magma')
+                ax.set_title(f'{sample["call_id"]}_clustered in:_{sample["cluster_membership"]}', fontsize=14)
+                ax.set_xlabel('Time (s)', fontsize=12)
+                ax.set_ylabel('Frequency (Hz)', fontsize=12)
+                fig.colorbar(img, ax=ax, format='%+2.0f dB')
+                plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+                # Save the individual spectrogram
+                spectrogram_filename = os.path.join(clusterings_results_path, f'{sample["call_id"]}_clustered_in_{sample["cluster_membership"]}_as_{sample["point_type"]}.png')
+                plt.savefig(spectrogram_filename)
+                plt.close(fig)  # Close the figure to free up memory
+
+                # Save the audio
+                audio_filename = os.path.join(clusterings_results_path, f'top_call_{sample["call_id"]}_clustered_in_{sample["cluster_membership"]}_as_{sample["point_type"]}.wav')
+                sf.write(audio_filename, call_audio, sr)
+
+                print(f"Processed call {sample['call_id']}")
+            else:
+                print(f'Audio file {audio_file} not found')
+
+        except Exception as e:
+            print(f"Error processing call {sample['call_id']}: {str(e)}")
+
+    print(f"Processed all {len(audio_data)} calls.")
 
 
+    # Function to get representative calls by percentile
+def get_representative_calls_by_percentile(cluster_data, percentiles, n_calls=10):
+    total_calls = len(cluster_data)
+    percentile_indices = [int(np.percentile(range(total_calls), p)) for p in percentiles]
 
-
-
-
-
-
-
-
-
-
-
+    representative_calls = []
+    for idx in percentile_indices:
+        start_idx = max(0, idx - n_calls//2)
+        end_idx = min(total_calls, idx + n_calls//2)
+        representative_calls.append(cluster_data.iloc[start_idx:end_idx])
+    
+    return representative_calls

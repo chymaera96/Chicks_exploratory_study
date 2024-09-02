@@ -16,7 +16,7 @@ from sklearn.cluster import KMeans
 # from scipy.cluster.hierarchy import dendrogram, linkage
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
-features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_'
+features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_without_jtfs'
 
 # features_path=r'C:\Users\anton\Chicks_Onset_Detection_project\Results_features\_results_examples_'
 # metadata_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/High_quality_dataset/high_quality_dataset_metadata.csv'
@@ -24,7 +24,7 @@ metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_featu
 
 
 # Path to save the results
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_kmeans_clustering_'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_kmeans_clustering_without_jtfs'
 # Check if the directory exists, if not, create it
 if not os.path.exists(clusterings_results_path):
     os.makedirs(clusterings_results_path)
