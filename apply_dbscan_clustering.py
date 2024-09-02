@@ -20,7 +20,7 @@ from clustering_utils import statistical_report, create_statistical_report_with_
 
 
 # features_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/_results_high_quality_dataset_'
-features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
+features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_' #without_jtfs'
 
 # metadata_path = '/Users/ines/Dropbox/QMUL/BBSRC-chickWelfare/High_quality_dataset/high_quality_dataset_metadata.csv'
 metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_meta\\high_quality_dataset_metadata.csv'
@@ -28,7 +28,7 @@ metadata_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_featu
 audio_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\high_quality_dataset'
 
 # Path to save the results
-clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_'
+clusterings_results_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_Clustering_\\_dbscan_clustering_\\_2_clusters_'
 if not os.path.exists(clusterings_results_path):
     os.makedirs(clusterings_results_path)
 
@@ -48,8 +48,8 @@ scaler = StandardScaler()
 features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec', 'recording', 'call_id'], axis=1)
 features_scaled = scaler.fit_transform(features)
 
-
-epsilon = 5.9
+# DBSCAN parameters
+epsilon = 6.068965517241379
 min_samples = 2
 
 # Compute the DBSCAN clustering
@@ -72,40 +72,40 @@ print('Estimated number of clusters: %d' % n_clusters_)
 all_data['cluster_membership'] = labels
 all_data.to_csv(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'), index=False)
 
-# file_csv = f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'
+file_csv = f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.csv'
 
-# # Perform UMAP for obtaining the standard embeddings for the clustering techniques
-# umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
-# standard_embedding = umap_reducer.fit_transform(features_scaled)
+# Perform UMAP for obtaining the standard embeddings for the clustering techniques
+umap_reducer = umap.UMAP(n_neighbors=20, n_components=3, min_dist=0.7)
+standard_embedding = umap_reducer.fit_transform(features_scaled)
 
-# # Plot the UMAP embeddings with the cluster membership and noise points
-# fig = plt.figure(figsize=(10, 8))
-# ax = fig.add_subplot(111, projection='3d')
+# Plot the UMAP embeddings with the cluster membership and noise points
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
 
-# custom_colors = ['Turquoise','Orange', 'MediumPurple', 'Darkred' ,'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
+custom_colors = ['Turquoise','Orange', 'MediumPurple', 'Darkred' ,'DarkKhaki', 'LightSkyBlue', 'LightGreen', 'LightPink', 'LightSteelBlue', 'LightSeaGreen', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightSlateGray', 'LightYellow']
 
-# for j in range(n_clusters_):
-#     ax.scatter(standard_embedding[labels == j, 0], 
-#                standard_embedding[labels == j, 1], 
-#                standard_embedding[labels == j, 2], 
-#                c=custom_colors[j % len(custom_colors)], 
-#                s=10, label=f'Cluster {j}', alpha=0.3)
+for j in range(n_clusters_):
+    ax.scatter(standard_embedding[labels == j, 0], 
+               standard_embedding[labels == j, 1], 
+               standard_embedding[labels == j, 2], 
+               c=custom_colors[j % len(custom_colors)], 
+               s=10, label=f'Cluster {j}', alpha=0.3)
 
-# # Plot noise points
-# ax.scatter(standard_embedding[labels == -1, 0], 
-#            standard_embedding[labels == -1, 1], 
-#            standard_embedding[labels == -1, 2], 
-#            c='k', 
-#            s=10, 
-#            label='Noise', alpha=0.5)
+# Plot noise points
+ax.scatter(standard_embedding[labels == -1, 0], 
+           standard_embedding[labels == -1, 1], 
+           standard_embedding[labels == -1, 2], 
+           c='k', 
+           s=10, 
+           label='Noise', alpha=0.5)
 
-# plt.title('UMAP projection of the dataset with DBSCAN clustering')
-# ax.set_xlabel('UMAP 1')
-# ax.set_ylabel('UMAP 2')
-# ax.set_zlabel('UMAP 3')
-# plt.legend()
-# plt.show()
-# plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.png'))
+plt.title('UMAP projection of the dataset with DBSCAN clustering')
+ax.set_xlabel('UMAP 1')
+ax.set_ylabel('UMAP 2')
+ax.set_zlabel('UMAP 3')
+plt.legend()
+plt.show()
+plt.savefig(os.path.join(clusterings_results_path, f'dbscan_cluster_membership_eps_{epsilon}_min_samples_{min_samples}.png'))
 
 
 # extract segments from the audio files
@@ -120,10 +120,10 @@ print('Random samples selected')
 plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
 
 
-# # Get the statistical report
+# Get the statistical report
 
-# stats = statistical_report(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
-# print(stats)
+stats = statistical_report(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
+print(stats)
 
 
-# radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
+radar= statistical_report_df = create_statistical_report_with_radar_plots(all_data, labels, n_clusters_ -1 , metadata, clusterings_results_path)
