@@ -13,6 +13,7 @@ import evaluation as my_eval
 from tqdm import tqdm
 import visualisation_features as vf
 import jtfs_coefficients as jtfs
+from update_features_csv import add_recording_callid_columns
 
 frame_length = 2048
 hop_length = 512
@@ -274,8 +275,14 @@ def compute_f0_features(audio, features_data ,sr, hop_length, frame_length, n_ff
             peak_index_in_time = lb.frames_to_time(peak_index, sr=sr)
             attack_time_f0_hz= peak_index_in_time - onset_in_time
             # Compute the slope of the  f0
-            F0_slope = attack_fr_hz/ attack_time_f0_hz
-       
+            # F0_slope = attack_fr_hz/ attack_time_f0_hz
+
+            if attack_time_f0_hz == 0:
+                F0_slope = 0  # if the time difference is 0 
+            elif np.isnan(attack_fr_hz) or attack_time_f0_hz < 0:
+                F0_slope = np.nan  # if the time difference is negative or the attack frequency is nan
+            else:
+                F0_slope = attack_fr_hz / attack_time_f0_hz
 
             # compute F1 and F2 
             F1_Hz_withoutNans = f0_call_without_nans * 2
@@ -331,18 +338,37 @@ def compute_f0_features(audio, features_data ,sr, hop_length, frame_length, n_ff
                 F2_mag_mean = np.mean(F2_mag_without_nans)
 
             # # Compute the ratios of the magnitudes of F1 and F2 to F0
-            if F1_mag == np.nan:
+
+            # if F1_mag == np.nan:
+            #     F1_F0_ratios_magnitude = np.nan
+            # else:
+                # F1_F0_ratios_magnitude = [F1 / F0 for F1, F0 in zip(F1_mag, F0_mag)]
+                # if not F1_mag:
+            #     F1_F0_ratios_magnitude = np.nan
+            # else:
+            #     F1_F0_ratios_magnitude = [F1 / F0 for F1, F0 in zip(F1_mag, F0_mag)]
+                # F1_F0_ratios_magnitude_mean = np.mean(F1_F0_ratios_magnitude)
+        
+
+            # if F2_mag_mean == np.nan:
+            #     F2_F0_ratios_magnitude_mean = np.nan
+            # else:
+            #     F2_F0_ratios_magnitude = [F2 / F0 for F2, F0 in zip(F2_mag, F0_mag)]
+            #     F2_F0_ratios_magnitude_mean = np.mean(F2_F0_ratios_magnitude)
+
+            if np.isnan(F1_mag_mean):
                 F1_F0_ratios_magnitude = np.nan
             else:
-                F1_F0_ratios_magnitude = [F1 / F0 for F1, F0 in zip(F1_mag, F0_mag)]
+                F1_F0_ratios_magnitude = [F1 / F0 for F1, F0 in zip(F1_mag, F0_mag) if F0 > 0]
+                
+                F1_F0_ratios_magnitude_mean = (np.mean(F1_F0_ratios_magnitude) if F1_F0_ratios_magnitude else np.nan)
 
-                F1_F0_ratios_magnitude_mean = np.mean(F1_F0_ratios_magnitude)
-
-            if F2_mag_mean == np.nan:
-                F2_F0_ratios_magnitude_mean = np.nan
+            if np.isnan(F2_mag_mean):
+                F2_F0_ratios_magnitude = np.nan 
             else:
-                F2_F0_ratios_magnitude = [F2 / F0 for F2, F0 in zip(F2_mag, F0_mag)]
-                F2_F0_ratios_magnitude_mean = np.mean(F2_F0_ratios_magnitude)
+                F2_F0_ratios_magnitude = [F2 / F0 for F2, F0 in zip(F2_mag, F0_mag) if F0 > 0]
+                F2_F0_ratios_magnitude_mean = (np.mean(F2_F0_ratios_magnitude) if F2_F0_ratios_magnitude else np.nan)
+
         
             # F0 features computed for the study
             F0_means.append(f0_call_mean)
@@ -406,11 +432,17 @@ def compute_f0_features(audio, features_data ,sr, hop_length, frame_length, n_ff
 
 if __name__ == '__main__':
 
-    files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\High_quality_dataset'
+    # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\High_quality_dataset'
 
-    #files_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\normalised_data_only_inside_exp_window\\Sub_testing_set'
+    # files_folder = 'C:\\Users\\anton\\Test_VPA_normalised\\Data'
+    files_folder = 'C:\\Users\\anton\\Vpa_experiment_data_normalised\\subset'
+
+    
+
+    # files_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\normalised_data_only_inside_exp_window\\Sub_testing_set'
     # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\calls_envelope_test'
 
+    # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\High_quality_dataset'
 
     list_files = [os.path.join(files_folder, file) for file in os.listdir(files_folder) if file.endswith('.wav')]
     for file in tqdm(list_files):
@@ -423,7 +455,12 @@ if __name__ == '__main__':
 
         save_features_file = 'features_data_' + chick_id + '.csv'   
 
-        save_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_results_high_quality_dataset_'
+        # save_folder= 'C:\\Users\\anton\\Test_VPA_normalised\\Results_features_extraction_new_highpass_12600'
+
+        save_folder = 'C:\\Users\\anton\\VPA_vocalisations_project\\Results_features_extraction_new_highpass_12600\\subset'
+
+        # save_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\Results_high_quality_dataset_new'
+        
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
         save_features_file = os.path.join(save_folder, save_features_file)
@@ -435,7 +472,7 @@ if __name__ == '__main__':
 
 
         ##### 1- Load audio file
-        audio_y, sr = lb.load(file, sr=44100, duration= 800)
+        audio_y, sr = lb.load(file, sr=44100)#, duration=800) # ADD duration to 800 to avoid hours for file 45 + rechange the highcut of bp to 12600 for the features study
         audio_fy = ut.bp_filter(audio_y, sr, lowcut=2000, highcut=12600)
 
 
@@ -481,10 +518,13 @@ if __name__ == '__main__':
         features_data.to_csv(save_features_file, index=False)
 
 
-        features_data, features_jtfs =jtfs.jtfs_coefficients(file, sr, min_freq_hz=2000, max_freq_hz=12600, max_dur_s=0.500, features_data=features_data)
+
+
+
+        # features_data, features_jtfs =jtfs.jtfs_coefficients(file, sr, min_freq_hz=2000, max_freq_hz=12600, max_dur_s=0.500, features_data=features_data)
 
         # # save locally features_data to a csv file
-        features_data.to_csv(save_features_file, index=False)
+        # features_data.to_csv(save_features_file, index=False)
 
         # # Visualise the spectrogram and the features computed (F0 stats, F0/F1 ratio, F0/F2 ratio, spectral centroid stats, RMS stats, envelope stats)
         # S = np.abs(lb.stft(y=audio_fy, n_fft=frame_length, hop_length=hop_length))
@@ -494,3 +534,12 @@ if __name__ == '__main__':
         # visualise_spectrogram_and_spectral_centroid(S, plot_spectral_centroid, sr, hop_length, chick_id)
         
         # visualise_spectrogram_and_RMS(S, rms_features_calls, sr, hop_length, chick_id)
+
+
+        # add the recording and call id columns to the features_data
+        
+
+        print('Features extracted successfully for file: ', file)
+        
+    add_recording_callid_columns(save_folder)
+    print('Features extracted successfully for all files')
