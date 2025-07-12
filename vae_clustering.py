@@ -4,13 +4,15 @@ import pandas as pd
 import numpy as np
 import umap.umap_ as umap
 import matplotlib.pyplot as plt
+from kneed import KneeLocator
+import skfuzzy as fuzz
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from sklearn.cluster import KMeans
-from clustering_utils import get_random_samples, plot_and_save_audio_segments, statistical_report, create_statistical_report_with_radar_plots
-
+from gap_statistic import OptimalK
 import torch
-from torch import nn, optim
-from torch.utils.data import DataLoader, TensorDataset
+import torch.nn as nn
+import torch.optim as optim
 
 # Define paths
 features_path = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\_result_high_quality_dataset_'
@@ -32,23 +34,20 @@ features = all_data.drop(['Call Number', 'onsets_sec', 'offsets_sec', 'recording
 features_scaled = scaler.fit_transform(features)
 
 # Define VAE model
-latent_dim = 2
-
 class Encoder(nn.Module):
     def __init__(self, input_dim, latent_dim):
         super(Encoder, self).__init__()
         self.fc1 = nn.Linear(input_dim, 64)
         self.fc2 = nn.Linear(64, 32)
         self.fc3_mean = nn.Linear(32, latent_dim)
-        self.fc3_log_var = nn.Linear(32, latent_dim)
+        self.fc3_logvar = nn.Linear(32, latent_dim)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         z_mean = self.fc3_mean(x)
-        z_log_var = self.fc3_log_var(x)
-        z = z_mean + torch.exp(0.5 * z_log_var) * torch.randn_like(z_mean)
-        return z_mean, z_log_var, z
+        z_logvar = self.fc3_logvar(x)
+        return z_mean, z_logvar
 
 class Decoder(nn.Module):
     def __init__(self, latent_dim, output_dim):
@@ -58,88 +57,142 @@ class Decoder(nn.Module):
         self.fc3 = nn.Linear(64, output_dim)
 
     def forward(self, z):
-        x = torch.relu(self.fc1(z))
-        x = torch.relu(self.fc2(x))
-        reconstruction = self.fc3(x)
+        z = torch.relu(self.fc1(z))
+        z = torch.relu(self.fc2(z))
+        reconstruction = self.fc3(z)
         return reconstruction
 
 class VAE(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, input_dim, latent_dim):
         super(VAE, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
+        self.encoder = Encoder(input_dim, latent_dim)
+        self.decoder = Decoder(latent_dim, input_dim)
+
+    def reparameterize(self, z_mean, z_logvar):
+        std = torch.exp(0.5 * z_logvar)
+        eps = torch.randn_like(std)
+        return z_mean + eps * std
 
     def forward(self, x):
-        z_mean, z_log_var, z = self.encoder(x)
+        z_mean, z_logvar = self.encoder(x)
+        z = self.reparameterize(z_mean, z_logvar)
         reconstruction = self.decoder(z)
-        return reconstruction, z_mean, z_log_var
+        return reconstruction, z_mean, z_logvar
 
-def loss_function(reconstruction, x, z_mean, z_log_var):
-    reconstruction_loss = nn.functional.mse_loss(reconstruction, x, reduction='sum')
-    kl_loss = -0.5 * torch.sum(1 + z_log_var - z_mean.pow(2) - z_log_var.exp())
-    return reconstruction_loss + kl_loss
+def loss_function(recon_x, x, z_mean, z_logvar):
+    recon_loss = nn.functional.mse_loss(recon_x, x, reduction='sum')
+    kl_div = -0.5 * torch.sum(1 + z_logvar - z_mean.pow(2) - z_logvar.exp())
+    return recon_loss + kl_div
+
+# Parameters
+input_dim = features_scaled.shape[1]
+latent_dim = 2
+vae = VAE(input_dim, latent_dim)
+optimizer = optim.Adam(vae.parameters(), lr=0.001)
+epochs = 50
+batch_size = 32
 
 # Prepare data for PyTorch
-tensor_features = torch.tensor(features_scaled, dtype=torch.float32)
-dataset = TensorDataset(tensor_features)
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+dataset = torch.utils.data.TensorDataset(torch.tensor(features_scaled, dtype=torch.float32))
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# Initialize and train VAE
-input_dim = features_scaled.shape[1]
-encoder = Encoder(input_dim, latent_dim)
-decoder = Decoder(latent_dim, input_dim)
-vae = VAE(encoder, decoder)
-
-optimizer = optim.Adam(vae.parameters(), lr=0.001)
-num_epochs = 50
-
-vae.train()
-for epoch in range(num_epochs):
-    total_loss = 0
-    for batch in dataloader:
-        x = batch[0]
+# Train VAE
+for epoch in range(epochs):
+    vae.train()
+    train_loss = 0
+    for data in dataloader:
         optimizer.zero_grad()
-        reconstruction, z_mean, z_log_var = vae(x)
-        loss = loss_function(reconstruction, x, z_mean, z_log_var)
+        recon_x, z_mean, z_logvar = vae(data[0])
+        loss = loss_function(recon_x, data[0], z_mean, z_logvar)
         loss.backward()
+        train_loss += loss.item()
         optimizer.step()
-        total_loss += loss.item()
-    print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(dataloader.dataset)}')
+    print(f'Epoch {epoch+1}, Loss: {train_loss/len(dataloader.dataset)}')
 
 # Get latent space representation
 vae.eval()
 with torch.no_grad():
-    z_means = []
-    for batch in dataloader:
-        x = batch[0]
-        z_mean, _, _ = vae.encoder(x)
-        z_means.append(z_mean)
-    z = torch.cat(z_means).numpy()
+    _, z_mean, _ = vae(torch.tensor(features_scaled, dtype=torch.float32))
+    z_mean = z_mean.numpy()
 
 # Perform clustering on latent space
-n_clusters = 5
-kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-cluster_membership = kmeans.fit_predict(z)
+n_max_clusters = 11
 
-all_data['cluster_membership'] = cluster_membership
-all_data.to_csv(os.path.join(clusterings_results_path, f'vae_clustering_{n_clusters}_membership.csv'), index=False)
+kmeans_cluster_evaluation_per_number_clusters = {
+    n_clusters: {'silhouette_score': 0,
+                 'calinski_harabasz_score': 0,
+                 'wcss': 0
+                 } for n_clusters in range(2, n_max_clusters)
+}
+
+for n_clusters in range(2, n_max_clusters):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    cluster_membership = kmeans.fit_predict(z_mean)
+    
+    silhouette = silhouette_score(z_mean, cluster_membership)
+    calinski_harabasz = calinski_harabasz_score(z_mean, cluster_membership)
+    wcss = kmeans.inertia_
+    
+    kmeans_cluster_evaluation_per_number_clusters[n_clusters]['silhouette_score'] = silhouette
+    kmeans_cluster_evaluation_per_number_clusters[n_clusters]['calinski_harabasz_score'] = calinski_harabasz
+    kmeans_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] = wcss
+    
+    print(f'Number of clusters: {n_clusters}, Silhouette Score: {silhouette}, Calinski Harabasz Score: {calinski_harabasz}, WCSS: {wcss}')
+
+# Save the results
+kmeans_cluster_evaluation_per_number_clusters_df = pd.DataFrame(kmeans_cluster_evaluation_per_number_clusters).T
+kmeans_cluster_evaluation_per_number_clusters_df.to_csv(os.path.join(clusterings_results_path, 'kmeans_cluster_evaluation_per_number_clusters.csv'))
+kmeans_cluster_evaluation_per_number_clusters_df.to_latex(os.path.join(clusterings_results_path, 'kmeans_cluster_evaluation_per_number_clusters.tex'))
+
+# Determine the optimal number of clusters
+wcss_vector_across_n_clusters = [kmeans_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] for n_clusters in range(2, n_max_clusters)]
+wcss_elbow = KneeLocator(range(2, n_max_clusters), wcss_vector_across_n_clusters, curve='convex', direction='decreasing', interp_method='polynomial', online=False)
+best_n_clusters_by_wcss_elbow = wcss_elbow.elbow
+
+optimal_k = OptimalK(parallel_backend='joblib')
+n_clusters_optimal_k = optimal_k(features_scaled, cluster_array=np.arange(2, n_max_clusters))
+print('Optimal number of clusters according to OptimalK:', n_clusters_optimal_k)
+print('Best number of clusters according to the elbow rule with WCSS:', best_n_clusters_by_wcss_elbow)
+
+# Plot evaluation metrics
+plt.figure(figsize=(30, 5))
+plt.subplot(1, 2, 1)
+plt.plot(list(kmeans_cluster_evaluation_per_number_clusters.keys()), [kmeans_cluster_evaluation_per_number_clusters[n_clusters]['silhouette_score'] for n_clusters in kmeans_cluster_evaluation_per_number_clusters.keys()], 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Silhouette Score')
+plt.title('Silhouette score per number of clusters')
+plt.grid()
+
+plt.subplot(1, 2, 2)
+plt.plot(list(kmeans_cluster_evaluation_per_number_clusters.keys()), [kmeans_cluster_evaluation_per_number_clusters[n_clusters]['calinski_harabasz_score'] for n_clusters in kmeans_cluster_evaluation_per_number_clusters.keys()], 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Calinski Harabasz Score')
+plt.title('Calinski Harabasz Score per number of clusters')
+plt.grid()
+
+plt.savefig(os.path.join(clusterings_results_path, 'kmeans_cluster_evaluation_per_number_clusters_1.png'))
+
+# Plot WCSS
+plt.figure(figsize=(10, 5))
+plt.plot(list(kmeans_cluster_evaluation_per_number_clusters.keys()), [kmeans_cluster_evaluation_per_number_clusters[n_clusters]['wcss'] for n_clusters in kmeans_cluster_evaluation_per_number_clusters.keys()], 'bx-')
+plt.axvline(x=best_n_clusters_by_wcss_elbow, color='r', linestyle='--', label=f'Elbow point: {best_n_clusters_by_wcss_elbow}')
+plt.xlabel('Number of clusters')
+plt.ylabel('WCSS')
+plt.title('WCSS per number of clusters')
+plt.legend()
+
+plt.savefig(os.path.join(clusterings_results_path, 'kmeans_cluster_evaluation_per_number_clusters_2.png'))
+
+plt.show()
+
+print('Clustering with KMeans completed!')
 
 # Visualize latent space
 plt.figure(figsize=(10, 8))
-scatter = plt.scatter(z[:, 0], z[:, 1], c=cluster_membership, cmap='viridis')
+scatter = plt.scatter(z_mean[:, 0], z_mean[:, 1], c=cluster_membership, cmap='viridis')
 plt.colorbar(scatter)
-plt.title('VAE Latent Space')
+plt.title('Latent space clustering')
 plt.xlabel('Latent Dimension 1')
 plt.ylabel('Latent Dimension 2')
-plt.savefig(os.path.join(clusterings_results_path, 'vae_latent_space.png'))
-plt.close()
-
-# Get random samples and plot audio segments
-random_samples = get_random_samples(all_data, 'cluster_membership', num_samples=5)
-plot_and_save_audio_segments(random_samples, audio_path, clusterings_results_path, 'cluster_membership')
-
-# Generate statistical reports
-stats = statistical_report(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)
-print(stats)
-
-radar = create_statistical_report_with_radar_plots(all_data, cluster_membership, n_clusters, metadata, clusterings_results_path)
+plt.savefig(os.path.join(clusterings_results_path, 'latent_space_clustering.png'))
+plt.show()

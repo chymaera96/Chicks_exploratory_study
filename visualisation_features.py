@@ -26,6 +26,7 @@ def visualise_spectrogram_and_harmonics(spec, F0, F1, F2, sr, hop_length, chick_
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency')
     plt.legend()
+    plt.show()
     plt.savefig(os.path.join(chick_id + '_spectrogram_F0_F1_F2.png'))
     
     return

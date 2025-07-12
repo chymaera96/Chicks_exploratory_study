@@ -13,8 +13,10 @@ import evaluation as my_eval
 from tqdm import tqdm
 import visualisation_features as vf
 from visualisation_features import visualise_spectrogram_and_harmonics, visualise_spectrogram_and_spectral_centroid, visualise_spectrogram_and_RMS
-# import jtfs_coefficients as jtfs
 from update_features_csv import add_recording_callid_columns
+from multiprocessing import Pool, cpu_count
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing as mp
 
 
 frame_length = 2048
@@ -432,52 +434,24 @@ def compute_f0_features(audio, features_data ,sr, hop_length, frame_length, n_ff
     return f0_features_calls, f0_pyin_lb, features_data
 
 
-
-if __name__ == '__main__':
-
-    # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\High_quality_dataset'
-
-    # files_folder = 'C:\\Users\\anton\\Test_VPA_normalised\\Data'
-    # files_folder = 'C:\\Users\\anton\\Vpa_experiment_data_normalised\\annotati da processare'
-
-    files_folder = 'C:\\Users\\anton\\VPA_vocalisations_project\\Automatic_calls_detected_070'
-
-    # files_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\normalised_data_only_inside_exp_window\\Sub_testing_set'
-    # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\calls_envelope_test'
-
-    # files_folder = 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Data\\High_quality_dataset'
-
-    list_files = [os.path.join(files_folder, file) for file in os.listdir(files_folder) if file.endswith('.wav')]
-    for file in tqdm(list_files):
+def process_single_file(file_path, save_folder):
+    """Process a single audio file and extract features"""
+    try:
         # Get the reference onsets and offsets        
-        onsets = my_eval.get_reference_onsets(file.replace('.wav', '.txt'))
-        offsets = my_eval.get_reference_offsets(file.replace('.wav', '.txt'))
+        onsets = my_eval.get_reference_onsets(file_path.replace('.wav', '.txt'))
+        offsets = my_eval.get_reference_offsets(file_path.replace('.wav', '.txt'))
 
-        chick_id = os.path.basename(file)[:-4]
-
-
+        chick_id = os.path.basename(file_path)[:-4]
         save_features_file = 'features_data_' + chick_id + '.csv'   
-
-        # save_folder= 'C:\\Users\\anton\\Test_VPA_normalised\\Results_features_extraction_new_highpass_12600'
-
-        save_folder = 'C:\\Users\\anton\\VPA_vocalisations_project\\Results_features_extraction_automatic_070'
-
-        # save_folder= 'C:\\Users\\anton\\Chicks_Onset_Detection_project\\Results_features\\Results_high_quality_dataset_new'
-        
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
         save_features_file = os.path.join(save_folder, save_features_file)
-
 
         features_data = pd.DataFrame()
         features_data['onsets_sec']= onsets
         features_data['offsets_sec']=offsets
 
-
         ##### 1- Load audio file
-        audio_y, sr = lb.load(file, sr=44100) # ADD duration to 800 to avoid hours for file 45 + rechange the highcut of bp to 12600 for the features study
+        audio_y, sr = lb.load(file_path, sr=44100)
         audio_fy = ut.bp_filter(audio_y, sr, lowcut=2000, highcut=15000)
-
 
         onsets_sec = onsets
         offsets_sec = offsets
@@ -487,65 +461,177 @@ if __name__ == '__main__':
         pyin_beta = (0.10, 0.10)
         pyin_ths = 100
         pyin_resolution = 0.02
-        
 
         events = list(zip(onsets, offsets))
-  
         durations = ut.calculate_durations(events)
         features_data['Duration_call'] = durations
         features_data.to_csv(save_features_file, index=False)
 
         # Compute F0 features
-        f0_features_calls, F0_wholesignal, features_data = compute_f0_features(audio_fy, features_data,sr, hop_length, frame_length, n_fft, pyin_fmin_hz, pyin_fmax_hz, pyin_beta, pyin_ths, pyin_resolution)
-        
-        # # save locally features_data to a csv file
-        features_data.to_csv(save_features_file, index=False)
-        
-        # F1_Hz = F0_wholesignal*2
-        # F2_Hz = F0_wholesignal*3
-        # # # Visualise the spectrogram and the features computed (F0 stats, F0/F1 ratio, F0/F2 ratio, spectral centroid stats, RMS stats, envelope stats)
-        # S = np.abs(lb.stft(y=audio_fy, n_fft=frame_length, hop_length=hop_length))
-
-        # visualise_spectrogram_and_harmonics(S, F0_wholesignal, F1_Hz, F2_Hz, sr, hop_length, chick_id)
-
-        #Compute the spectral centroid
-        spectral_centroid_feature_calls, features_data = spectral_centroid(audio_fy, features_data, sr, frame_length, hop_length)
-        # # save locally features_data to a csv file
+        f0_features_calls, F0_wholesignal, features_data = compute_f0_features(
+            audio_fy, features_data, sr, hop_length, frame_length, n_fft, 
+            pyin_fmin_hz, pyin_fmax_hz, pyin_beta, pyin_ths, pyin_resolution
+        )
         features_data.to_csv(save_features_file, index=False)
 
-        # # Compute the RMS
-        rms_features_calls, features_data = rms_features(audio_fy, features_data, sr, frame_length, hop_length)
-        # # save locally features_data to a csv file
+        # Compute the spectral centroid
+        spectral_centroid_feature_calls, features_data = spectral_centroid(
+            audio_fy, features_data, sr, frame_length, hop_length
+        )
         features_data.to_csv(save_features_file, index=False)
 
-
-        # # Compute the envelope features
-        envelope_features_calls, features_data = compute_envelope_features(audio_fy, features_data, sr)
-        # # save locally features_data to a csv file
+        # Compute the RMS
+        rms_features_calls, features_data = rms_features(
+            audio_fy, features_data, sr, frame_length, hop_length
+        )
         features_data.to_csv(save_features_file, index=False)
 
+        # Compute the envelope features
+        envelope_features_calls, features_data = compute_envelope_features(
+            audio_fy, features_data, sr
+        )
+        features_data.to_csv(save_features_file, index=False)
 
-
-
-        # features_data, features_jtfs =jtfs.jtfs_coefficients(file, sr, min_freq_hz=2000, max_freq_hz=12600, max_dur_s=0.500, features_data=features_data)
-
-        # # save locally features_data to a csv file
-        # features_data.to_csv(save_features_file, index=False)
-
-        # # Visualise the spectrogram and the features computed (F0 stats, F0/F1 ratio, F0/F2 ratio, spectral centroid stats, RMS stats, envelope stats)
-        # S = np.abs(lb.stft(y=audio_fy, n_fft=frame_length, hop_length=hop_length))
-
-        # visualise_spectrogram_and_harmonics(S, F0_wholesignal, F1_Hz, F2_Hz, sr, hop_length, chick_id)
+        print(f'Features extracted successfully for file: {file_path}')
+        return True, file_path
         
-        # visualise_spectrogram_and_spectral_centroid(S, plot_spectral_centroid, sr, hop_length, chick_id)
-        
-        # visualise_spectrogram_and_RMS(S, rms_features_calls, sr, hop_length, chick_id)
+    except Exception as e:
+        print(f'Error processing file {file_path}: {str(e)}')
+        return False, file_path
 
-
-        # add the recording and call id columns to the features_data
-        
-
-        print('Features extracted successfully for file: ', file)
-        
+def parallel_feature_extraction_multiprocessing(files_folder, save_folder, n_processes=None):
+    """
+    Process files using multiprocessing.Pool
+    """
+    if n_processes is None:
+        n_processes = cpu_count()
+    
+    print(f"Using {n_processes} processes")
+    
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+    
+    list_files = [os.path.join(files_folder, file) for file in os.listdir(files_folder) if file.endswith('.wav')]
+    
+    # Create a partial function with save_folder fixed
+    from functools import partial
+    process_func = partial(process_single_file, save_folder=save_folder)
+    
+    with Pool(processes=n_processes) as pool:
+        # Use imap for progress tracking
+        results = list(tqdm(pool.imap(process_func, list_files), total=len(list_files)))
+    
+    # Check results
+    successful = sum(1 for success, _ in results if success)
+    failed = len(results) - successful
+    
+    print(f"Processed {successful} files successfully, {failed} failed")
+    
+    # Add recording and call id columns
     add_recording_callid_columns(save_folder)
-    print('Features extracted successfully for all files')
+    print('All features extracted successfully')
+
+def parallel_feature_extraction_concurrent(files_folder, save_folder, max_workers=None):
+    """
+    Process files using concurrent.futures.ProcessPoolExecutor
+    Provides better error handling and progress tracking
+    """
+    if max_workers is None:
+        max_workers = cpu_count()
+    
+    print(f"Using {max_workers} workers")
+    
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+    
+    list_files = [os.path.join(files_folder, file) for file in os.listdir(files_folder) if file.endswith('.wav')]
+    
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_file = {
+            executor.submit(process_single_file, file_path, save_folder): file_path 
+            for file_path in list_files
+        }
+        
+        # Process completed tasks with progress bar
+        successful = 0
+        failed = 0
+        
+        for future in tqdm(as_completed(future_to_file), total=len(list_files)):
+            file_path = future_to_file[future]
+            try:
+                success, processed_file = future.result()
+                if success:
+                    successful += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                print(f'Error processing {file_path}: {str(e)}')
+                failed += 1
+    
+    print(f"Processed {successful} files successfully, {failed} failed")
+    
+    # Add recording and call id columns
+    add_recording_callid_columns(save_folder)
+    print('All features extracted successfully')
+
+def parallel_feature_extraction_batched(files_folder, save_folder, batch_size=4, n_processes=None):
+    """
+    Process files in batches to balance memory usage and parallelization
+    """
+    if n_processes is None:
+        n_processes = cpu_count()
+    
+    print(f"Using {n_processes} processes with batch size {batch_size}")
+    
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+    
+    list_files = [os.path.join(files_folder, file) for file in os.listdir(files_folder) if file.endswith('.wav')]
+    
+    # Process in batches
+    from functools import partial
+    process_func = partial(process_single_file, save_folder=save_folder)
+    
+    successful = 0
+    failed = 0
+    
+    for i in range(0, len(list_files), batch_size):
+        batch = list_files[i:i + batch_size]
+        print(f"Processing batch {i//batch_size + 1}/{(len(list_files) + batch_size - 1)//batch_size}")
+        
+        with Pool(processes=min(n_processes, len(batch))) as pool:
+            results = pool.map(process_func, batch)
+        
+        # Count results
+        batch_successful = sum(1 for success, _ in results if success)
+        batch_failed = len(results) - batch_successful
+        
+        successful += batch_successful
+        failed += batch_failed
+        
+        print(f"Batch completed: {batch_successful} successful, {batch_failed} failed")
+    
+    print(f"Total: {successful} files processed successfully, {failed} failed")
+    
+    # Add recording and call id columns
+    add_recording_callid_columns(save_folder)
+    print('All features extracted successfully')
+
+if __name__ == '__main__':
+    files_folder = 'C:\\Users\\anton\\VPA_vocalisations_project\\Automatic_calls_detected_070'
+    save_folder = 'C:\\Users\\anton\\VPA_vocalisations_project\\Results_features_extraction_automatic_070'
+    
+    # Choose one of the parallel processing methods:
+    
+    # Method 1: Simple multiprocessing (recommended for most cases)
+    parallel_feature_extraction_multiprocessing(files_folder, save_folder)
+    
+    # Method 2: Concurrent futures (better error handling)
+    # parallel_feature_extraction_concurrent(files_folder, save_folder)
+    
+    # Method 3: Batched processing (if you have memory constraints)
+    # parallel_feature_extraction_batched(files_folder, save_folder, batch_size=4)
+    
+    # Method 4: Custom number of processes
+    # parallel_feature_extraction_multiprocessing(files_folder, save_folder, n_processes=4)
